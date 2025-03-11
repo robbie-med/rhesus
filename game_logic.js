@@ -73,7 +73,9 @@ async function startGame() {
         
         // Update vital signs immediately
         refreshVitalSigns();
-        
+	    
+        forceUpdatePatientUI();
+	    
         setActionInProgress(false);
     } catch (error) {
         console.error('Error starting game:', error);
@@ -187,7 +189,7 @@ Return only valid JSON without any markdown formatting or additional text.`;
             event: 'Case started',
             data: patientData
         });
-        
+        forceUpdatePatientUI();
         return patientData;
     } catch (error) {
         console.error('Error parsing patient case:', error);
