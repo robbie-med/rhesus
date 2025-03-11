@@ -12,7 +12,7 @@ export let actionInProgress = false;
 export let selectedCaseType = null;
 export let gameIntervalId = null;
 
-// Function to set the case type (to avoid direct modification of the imported variable)
+// Function to set the case type
 export function setSelectedCaseType(type) {
   console.log("Setting selectedCaseType to:", type);
   selectedCaseType = type;
