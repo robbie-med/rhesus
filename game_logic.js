@@ -54,7 +54,6 @@ async function startGame() {
         chatInput.disabled = false;
         sendMessageButton.disabled = false;
         actionButtons.parentElement.classList.remove('hidden');
-        actionButtons.classList.remove('hidden');
         preGameMessage.classList.add('hidden');
         patientDataSection.classList.remove('hidden');
         
@@ -77,125 +76,64 @@ async function startGame() {
 
 // Generate a new patient case based on the selected type
 async function generatePatientCase() {
-    const prompt = `You are an advanced medical case simulation engine for an internal medicine resident training game. Your task is to generate a **realistic, medically accurate, and engaging patient case** of a ${selectedCaseType} condition where the player interacts with the patient to make diagnostic and management decisions.
-            ## **Case Requirements**:
-            - The case should be appropriately challenging for an **internal medicine resident**.
-            - It should **simulate an actual patient encounter**, allowing for **history-taking, physical exam findings, and diagnostic decision-making**.
-            - The **final diagnosis should be hidden from the player**, requiring them to work through the case.
-            
-            ---
-            
-            ## **Case Structure**:
-            ### **1. Patient Demographics:**
-               - Age, gender, ethnicity (if relevant)
-               - Any significant past medical history, family history, social history (smoking, alcohol, drug use)
-               - Medications the patient is currently taking
-            
-            ### **2. Chief Complaint (CC):**
-               - A **brief and natural** patient-reported reason for the visit (e.g., "I’ve been feeling really short of breath for the past two days.")
-            
-            ### **3. History of Present Illness (HPI):**
-               - Detailed narrative including:
-                 - **Onset** (acute, chronic, progressive)
-                 - **Location** (if applicable)
-                 - **Duration** (how long the symptoms have lasted)
-                 - **Character** (sharp, dull, burning, etc.)
-                 - **Alleviating/aggravating factors** (what makes it better or worse)
-                 - **Associated symptoms** (e.g., fever, nausea, weight loss, night sweats)
-                 - **Pertinent negatives** (e.g., denies chest pain, denies recent travel)
-                 - **Recent relevant exposures** (e.g., sick contacts, travel, hospitalizations, new medications, recent procedures)
-            
-            ### **4. Vital Signs:**
-               - **Heart Rate (HR)**
-               - **Blood Pressure (BP)**
-               - **Respiratory Rate (RR)**
-               - **Temperature (Temp)**
-               - **Oxygen Saturation (O2 Sat)**
-               - (Include a realistic set of vitals based on the case)
-            
-            ### **5. Physical Examination:**
-               - General appearance (e.g., "Patient appears uncomfortable, diaphoretic.")
-               - Relevant system-specific findings (e.g., "Bilateral crackles at lung bases" for CHF, "Systolic murmur loudest at the right upper sternal border" for aortic stenosis)
-               - Neurological findings if relevant (e.g., "Decreased strength in right upper and lower extremity, positive Babinski sign.")
-            
-            ### **6. Diagnostic Workup:**
-               - **Laboratory results:** Provide **normal vs. abnormal** values as appropriate. Include key findings like:
-                 - CBC, BMP, liver function tests, cardiac enzymes, inflammatory markers, coagulation panel, etc.
-               - **Imaging findings** (e.g., CXR, CT scan, MRI, ultrasound)
-               - **EKG if relevant** (e.g., "Sinus tachycardia with ST depressions in leads II, III, aVF")
-               - **Point-of-care tests (POCT)** (e.g., "Urinalysis shows +2 protein, +1 blood")
-            
-            ### **7. The Underlying Diagnosis (Hidden from Player):**
-               - Clearly define the correct **final diagnosis**.
-               - Include **differential diagnoses** the player should consider.
-               - Explain **why this diagnosis fits the patient presentation**.
-            
-            ---
-            
-            ## **Additional Features for Interactivity:**
-            1. **Dynamic Patient Responses:**
-               - If the player asks a relevant question, provide a **realistic patient response** (e.g., “No, I haven’t had any recent fevers, but I did have a bad cough last week.”)
-               - If the player asks an irrelevant or vague question, make the patient **respond accordingly** (e.g., “I’m not sure what you mean, doc.”)
-            
-            2. **Progressive Case Evolution:**
-               - The patient’s condition **may worsen** if the correct intervention is delayed.
-               - Critical findings should **become more apparent over time**.
-            
-            3. **Scoring System (if applicable):**
-               - The player is scored based on:
-                 - **Correct history-taking questions** asked.
-                 - **Accuracy of physical exam interpretation**.
-                 - **Diagnostic reasoning and test ordering**.
-                 - **Correctness of treatment decisions**.
-            
-            ---
-            
-            ## **Output Format:**
-            Return a **structured JSON object** with the following keys:
-            
-            #
-              "demographics": {
-                "age": 67,
-                "gender": "male",
-                "ethnicity": "Caucasian",
-                "history": "Past medical history of hypertension and type 2 diabetes. Smokes 1 pack/day for 40 years."
-              
-              "chiefComplaint": "I’ve been having trouble breathing for the last three days.",
-              "history": {
-                "onset": "Three days ago",
-                "character": "Worsening shortness of breath with exertion",
-                "associatedSymptoms": ["Orthopnea", "Bilateral leg swelling", "Fatigue"],
-                "pertinentNegatives": ["No chest pain", "No fever", "No recent illness"],
-                "exposures": "No recent travel or sick contacts."
-              },
-              "vitalSigns": {
-                "HR": 110,
-                "BP": "160/90",
-                "RR": 24,
-                "Temp": 37.1,
-                "O2Sat": 89
-              },
-              "physicalExam": {
-                "general": "Appears uncomfortable, using accessory muscles to breathe.",
-                "lungs": "Bilateral crackles at lung bases.",
-                "cardiac": "S3 gallop noted.",
-                "extremities": "Bilateral pitting edema up to the knees."
-              },
-              "diagnosticWorkup": {
-                "labs": {
-                  "BNP": "Elevated at 900 pg/mL",
-                  "Creatinine": "1.4 (mildly elevated from baseline 1.0)",
-                  "Troponin": "Normal"
-                },
-                "imaging": {
-                  "CXR": "Cardiomegaly, pulmonary vascular congestion, bilateral pleural effusions.",
-                  "EKG": "Sinus tachycardia, no acute ischemic changes."
-                }
-              },
-              "diagnosis": "Acute decompensated heart failure (CHF exacerbation)"
-            }
-                
-                Return only valid JSON without any markdown formatting or additional text.`;
+    const prompt = `You are an advanced medical case simulation engine for an internal medicine resident training game. Your task is to generate a realistic, medically accurate, and engaging patient case of a ${selectedCaseType} where the player interacts with the patient to make diagnostic and management decisions.
+	Case Requirements:
+		- The case should be appropriately challenging for an internal medicine resident.
+		- It should simulate an actual patient encounter, allowing for history-taking, physical exam findings, and diagnostic decision-making.
+		- The final diagnosis should be hidden from the player, requiring them to work through the case.
+	Case Structure:
+		1. Patient Demographics:
+		   - Age, gender, ethnicity (if relevant)
+		   - Any significant past medical history, family history, social history (smoking, alcohol, drug use)
+		   - Medications the patient is currently taking
+		 2. Chief Complaint (CC):
+		   - A brief and natural patient-reported reason for the visit (e.g., "I’ve been feeling really short of breath for the past two days.")
+		 3. History of Present Illness (HPI):
+		   - Detailed narrative including:
+			 - Onset (acute, chronic, progressive)
+			 - Location (if applicable)
+			 - Duration (how long the symptoms have lasted)
+			 - Character (sharp, dull, burning, etc.)
+			 - Alleviating/aggravating factors (what makes it better or worse)
+			 - Associated symptoms (e.g., fever, nausea, weight loss, night sweats)
+			 - Pertinent negatives (e.g., denies chest pain, denies recent travel)
+			 - Recent relevant exposures (e.g., sick contacts, travel, hospitalizations, new medications, recent procedures)
+		 4. Vital Signs:
+		   - Heart Rate (HR)
+		   - Blood Pressure (BP)
+		   - Respiratory Rate (RR)
+		   - Temperature (Temp)
+		   - Oxygen Saturation (O2 Sat)
+		   - (Include a realistic set of vitals based on the case)
+		 5. Physical Examination:
+		   - General appearance (e.g., "Patient appears uncomfortable, diaphoretic.")
+		   - Relevant system-specific findings (e.g., "Bilateral crackles at lung bases" for CHF, "Systolic murmur loudest at the right upper sternal border" for aortic stenosis)
+		   - Neurological findings if relevant (e.g., "Decreased strength in right upper and lower extremity, positive Babinski sign.")
+		 6. Diagnostic Workup:
+		   - Laboratory results: Provide normal vs. abnormal values as appropriate. Include key findings like:
+			 - CBC, BMP, liver function tests, cardiac enzymes, inflammatory markers, coagulation panel, etc.
+		   - Imaging findings (e.g., CXR, CT scan, MRI, ultrasound)
+		   - EKG if relevant (e.g., "Sinus tachycardia with ST depressions in leads II, III, aVF")
+		   - Point-of-care tests (POCT) (e.g., "Urinalysis shows +2 protein, +1 blood")
+		 7. The Underlying Diagnosis (Hidden from Player):
+		   - Clearly define the correct final diagnosis.
+		   - Include differential diagnoses the player should consider.
+		   - Explain why this diagnosis fits the patient presentation.
+		Additional Features for Interactivity:
+		1. Dynamic Patient Responses:
+		   - If the player asks a relevant question, provide a realistic patient response (e.g., “No, I haven’t had any recent fevers, but I did have a bad cough last week.”)
+		   - If the player asks an irrelevant or vague question, make the patient respond accordingly (e.g., “I’m not sure what you mean, doc.”)
+		2. Progressive Case Evolution:
+		   - The patient’s condition may worsen if the correct intervention is delayed.
+		   - Critical findings should become more apparent over time.
+		3. Scoring System (if applicable):
+		   - The player is scored based on:
+			 - Correct history-taking questions asked.
+			 - Accuracy of physical exam interpretation.
+			 - Diagnostic reasoning and test ordering.
+			 - Correctness of treatment decisions.
+
+Return only valid JSON without any markdown formatting or additional text.`;
     
     try {
         const response = await callAPI([{ role: "user", content: prompt }]);
@@ -297,72 +235,37 @@ function updateGameTime() {
     }
 }
 
+// Update vital signs based on patient condition and treatments
 async function refreshVitalSigns() {
     if (!gameActive) return;
-
-    // Create a dynamic prompt for updating vital signs
+    
+    // Create a prompt for updating vital signs
     const vitalsPrompt = `
-             You are a **real-time patient physiology simulator** for an **internal medicine resident training game**. Your goal is to update the patient's vital signs **dynamically and realistically** based on:
-            1. **The natural progression of the underlying disease.**
-            2. **Appropriate interventions and treatments administered by the player.**
-            3. **Inappropriate treatments or delays, which may cause rapid deterioration.**
-            4. **Expected physiological responses over time** (e.g., slow improvement vs. acute decompensation).
-        
-            **Case Overview:**
-            - **Diagnosis (hidden from player):** ${patientData.diagnosis}
-            - **History:** ${patientData.history}
-            - **Chief complaint:** ${patientData.chiefComplaint}
-        
-            **Current Vital Signs:**
-            - **HR:** ${vitalSigns.HR} bpm
-            - **BP:** ${vitalSigns.BPSystolic}/${vitalSigns.BPDiastolic} mmHg (MAP: ${vitalSigns.MAP} mmHg)
-            - **RR:** ${vitalSigns.RR} breaths/min
-            - **Temp:** ${vitalSigns.Temp}°C
-            - **O₂ Sat:** ${vitalSigns.O2Sat}%
-        
-            **Recent Events:**
-            ${caseHistory.length > 1 ? caseHistory.slice(-5).map(event => `- ${formatGameTime(event.time)}: ${event.event}`).join('\n') : 'No interventions have been performed yet.'}
-        
-            **Time Elapsed Since Case Start:** ${formatGameTime(inGameTime)} (each 10 seconds real-time = 1 minute in-game)
-        
-            ---
-            
-            ## **Instructions:**
-            - **Update vital signs** realistically based on the current state of disease progression and treatments administered.
-            - If **no intervention** has been performed and the disease would naturally progress, **adjust the vitals accordingly** (gradual or rapid worsening).
-            - If a **correct intervention** was performed, reflect **improvement** in a reasonable time frame.
-            - If an **incorrect or harmful intervention** was given, introduce **acute deterioration** (e.g., respiratory failure after too much IV fluids in CHF).
-            - If the patient is **critically ill**, simulate **rapid decline** unless immediate resuscitative measures are taken.
-            - Consider **expected pharmacokinetics & physiology** (e.g., beta-blockers reducing HR over time, vasopressors increasing BP rapidly).
-        
-            ---
-            
-            ## **Example Expected Changes:**
-            - **Septic Shock (no fluids, no pressors)** → BP drops further, HR rises, O₂ sat declines
-            - **Septic Shock (fluids given, but no vasopressors yet)** → BP stabilizes slightly, HR still high
-            - **Acute CHF (given IV fluids)** → Sudden drop in O₂ sat, increased RR, worsening BP
-            - **Acute CHF (given diuretics and BiPAP)** → Gradual HR decrease, improved O₂ sat
-            - **DKA (given insulin and fluids correctly)** → Gradual HR decrease, BP stabilizes, RR normalizes
-            - **DKA (insulin given before fluids)** → Acute BP drop, HR rises further
-        
-            ---
-            
-            ## **Output Format:**
-            Return a JSON object with the updated vital signs:
-            ` `json
-           ` `{
-              "HR": (updated heart rate in bpm),
-              "BPSystolic": (updated systolic BP in mmHg),
-              "BPDiastolic": (updated diastolic BP in mmHg),
-              "RR": (updated respiratory rate in breaths/min),
-              "Temp": (updated temperature in Celsius),
-              "O2Sat": (updated oxygen saturation percentage)
-            }
-            ```
-            `Ensure the values **reflect realistic physiological changes** based on the scenario. **Do not include any markdown formatting or extra text.**`
-        
-        }
-        ;
+    Based on the following patient case and timeline of events, update the vital signs realistically, taking into account the underlying condition and any interventions performed so far.
+    
+    Current patient information:
+    - Diagnosis (hidden from player): ${patientData.diagnosis}
+    - History: ${patientData.history}
+    - Chief complaint: ${patientData.chiefComplaint}
+    
+    Current vitals:
+    - HR: ${vitalSigns.HR} bpm
+    - BP: ${vitalSigns.BPSystolic}/${vitalSigns.BPDiastolic} mmHg
+    - MAP: ${vitalSigns.MAP} mmHg
+    - RR: ${vitalSigns.RR} breaths/min
+    - Temp: ${vitalSigns.Temp}°C
+    - O2Sat: ${vitalSigns.O2Sat}%
+    
+    ${caseHistory.length > 1 ? 'Recent events:' : 'No interventions have been performed yet.'}
+    ${caseHistory.slice(-5).map(event => `- ${formatGameTime(event.time)}: ${event.event}`).join('\n')}
+    
+    Time elapsed since case start: ${formatGameTime(inGameTime)} (each 10 seconds real-time represents about 1 minute of in-game time)
+    
+    Provide updated vital signs as a JSON object with these fields: HR, BPSystolic, BPDiastolic, RR, Temp, O2Sat.
+    Use realistic physiological changes based on the patient's condition and any treatments.
+    If the patient's condition would naturally worsen or improve at this point, reflect that in the vitals.
+    
+    Return only valid JSON without any markdown formatting or additional text.`;
     
     try {
         const response = await callAPI([{ role: "user", content: vitalsPrompt }]);
@@ -431,8 +334,8 @@ async function refreshVitalSigns() {
 function checkCriticalVitals() {
     // Define critical thresholds
     const criticalThresholds = {
-        HR: { low: 40, high: 190 },
-        BPSystolic: { low: 80, high: 200 },
+        HR: { low: 40, high: 130 },
+        BPSystolic: { low: 90, high: 180 },
         RR: { low: 8, high: 30 },
         Temp: { low: 35, high: 39.5 },
         O2Sat: { low: 90, high: 100 } // High is just a max value
