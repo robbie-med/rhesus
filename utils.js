@@ -13,11 +13,12 @@ export let selectedCaseType = null;
 export let gameIntervalId = null;
 
 // Function to set the case type
-export function setSelectedCaseType(type) {
-  console.log("Setting selectedCaseType to:", type);
-  selectedCaseType = type;
-  console.log("New value:", selectedCaseType);
-}
+export function setSelectedCaseType(type) 
+  {
+    console.log("Setting selectedCaseType to:", type);
+    selectedCaseType = type;
+    console.log("New value:", selectedCaseType);
+  }
 
 // DOM element references
 export const chatInput = document.getElementById('chat-input');
