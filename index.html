@@ -239,6 +239,23 @@
         #end-game:hover {
             background-color: #c0392b;
         }
+        
+        #debug-buttons {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f1c40f;
+            border-radius: 4px;
+        }
+        
+        .debug-button {
+            margin: 5px;
+            padding: 8px 15px;
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -275,6 +292,13 @@
                 </div>
                 <div>
                     <button id="end-game" class="hidden">End Case</button>
+                </div>
+                
+                <!-- Debug controls - can be removed after fixing -->
+                <div id="debug-buttons">
+                    <h4>Debug Controls</h4>
+                    <button class="debug-button" onclick="document.getElementById('action-buttons').classList.remove('hidden'); console.log('Action buttons shown');">Show Action Buttons</button>
+                    <button class="debug-button" onclick="document.getElementById('pre-game-message').classList.add('hidden'); console.log('Pre-game message hidden');">Hide Pre-game Message</button>
                 </div>
             </div>
         </div>
@@ -329,6 +353,34 @@
             </div>
         </div>
     </div>
+    
+    <!-- Fix for DOM element references -->
+    <script>
+        // This script runs before modules load to ensure DOM is properly initialized
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM fully loaded, checking elements before module initialization");
+            
+            // Force initialization for action buttons visibility
+            const startGame = document.getElementById('start-game');
+            if (startGame) {
+                const originalStartClick = startGame.onclick;
+                startGame.onclick = function(e) {
+                    // Call original handler if exists
+                    if (originalStartClick) originalStartClick.call(this, e);
+                    
+                    // Force action buttons to show
+                    setTimeout(() => {
+                        console.log("Forcing action buttons visibility after click");
+                        const actionButtons = document.getElementById('action-buttons');
+                        const preGameMessage = document.getElementById('pre-game-message');
+                        
+                        if (actionButtons) actionButtons.classList.remove('hidden');
+                        if (preGameMessage) preGameMessage.classList.add('hidden');
+                    }, 2000); // Give the game a chance to initialize
+                };
+            }
+        });
+    </script>
     
     <!-- Load the main.js module which will handle importing the other modules -->
     <script type="module" src="main.js"></script>
