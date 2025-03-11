@@ -349,8 +349,8 @@ async function refreshVitalSigns() {
             
             ## **Output Format:**
             Return a JSON object with the updated vital signs:
-            ```json
-            {
+            ` `json
+           ` `{
               "HR": (updated heart rate in bpm),
               "BPSystolic": (updated systolic BP in mmHg),
               "BPDiastolic": (updated diastolic BP in mmHg),
@@ -359,9 +359,8 @@ async function refreshVitalSigns() {
               "O2Sat": (updated oxygen saturation percentage)
             }
             ```
-            Ensure the values **reflect realistic physiological changes** based on the scenario. **Do not include any markdown formatting or extra text.**`
-            
-            // Process the response...
+            `Ensure the values **reflect realistic physiological changes** based on the scenario. **Do not include any markdown formatting or extra text.**`
+        
         }
         ;
     
