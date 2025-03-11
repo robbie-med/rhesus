@@ -240,14 +240,12 @@ async function refreshVitalSigns() {
     if (!gameActive) return;
     
     // Create a prompt for updating vital signs
-    const vitalsPrompt = `
-    Based on the following patient case and timeline of events, update the vital signs realistically, taking into account the underlying condition and any interventions performed so far.
     
+    const vitalsPrompt = `You are a real-time patient physiology simulator for an internal medicine resident training game. Your goal is to update the patient's vital signs dynamically and realistically  taking into account the underlying condition and any interventions performed so far.  Consider:
     Current patient information:
     - Diagnosis (hidden from player): ${patientData.diagnosis}
     - History: ${patientData.history}
     - Chief complaint: ${patientData.chiefComplaint}
-    
     Current vitals:
     - HR: ${vitalSigns.HR} bpm
     - BP: ${vitalSigns.BPSystolic}/${vitalSigns.BPDiastolic} mmHg
@@ -255,16 +253,32 @@ async function refreshVitalSigns() {
     - RR: ${vitalSigns.RR} breaths/min
     - Temp: ${vitalSigns.Temp}°C
     - O2Sat: ${vitalSigns.O2Sat}%
-    
-    ${caseHistory.length > 1 ? 'Recent events:' : 'No interventions have been performed yet.'}
-    ${caseHistory.slice(-5).map(event => `- ${formatGameTime(event.time)}: ${event.event}`).join('\n')}
-    
-    Time elapsed since case start: ${formatGameTime(inGameTime)} (each 10 seconds real-time represents about 1 minute of in-game time)
-    
-    Provide updated vital signs as a JSON object with these fields: HR, BPSystolic, BPDiastolic, RR, Temp, O2Sat.
-    Use realistic physiological changes based on the patient's condition and any treatments.
-    If the patient's condition would naturally worsen or improve at this point, reflect that in the vitals.
-    
+    The Disease:  
+	- The natural progression of the underlying disease.
+	- Appropriate interventions and treatments administered by the player.
+	- Inappropriate treatments or delays, which may cause rapid deterioration.
+	- Expected physiological responses over time (e.g., slow improvement vs. acute decompensation).
+	Recent Events:
+	 ${caseHistory.length > 1 ? 'Recent events:' : 'No interventions have been performed yet.'}
+	 ${caseHistory.slice(-5).map(event => `- ${formatGameTime(event.time)}: ${event.event}`).join('\n')}  
+	 Time elapsed since case start: ${formatGameTime(inGameTime)} (each 10 seconds real-time represents about 1 minute of in-game time)
+	Instructions:
+		- Update vital signs realistically based on the current state of disease progression and treatments administered.
+		- If no intervention has been performed and the disease would naturally progress, adjust the vitals accordingly (gradual or rapid worsening).
+		- If a correct intervention was performed, reflect improvement in a reasonable time frame.
+		- If an incorrect or harmful intervention was given, introduce acute deterioration (e.g., respiratory failure after too much IV fluids in CHF).
+		- If the patient is critically ill, simulate rapid decline unless immediate resuscitative measures are taken.
+		- Consider expected pharmacokinetics & physiology (e.g., beta-blockers reducing HR over time, vasopressors increasing BP rapidly).
+	Example Expected Changes:
+		- Septic Shock (no fluids, no pressors) → BP drops further, HR rises, O₂ sat declines
+		- Septic Shock (fluids given, but no vasopressors yet) → BP stabilizes slightly, HR still high
+		- Acute CHF (given IV fluids) → Sudden drop in O₂ sat, increased RR, worsening BP
+		- Acute CHF (given diuretics and BiPAP) → Gradual HR decrease, improved O₂ sat
+		- DKA (given insulin and fluids correctly) → Gradual HR decrease, BP stabilizes, RR normalizes
+		- DKA (insulin given before fluids) → Acute BP drop, HR rises further
+	Output Format:
+			Provide updated vital signs as a JSON object with these fields: HR, BPSystolic, BPDiastolic, RR, Temp, O2Sat.
+    Based on the following patient case and timeline of events, update the vital signs realistically,
     Return only valid JSON without any markdown formatting or additional text.`;
     
     try {
