@@ -5,7 +5,12 @@ import {
     gameActive, inGameTime, cost, score, caseHistory, patientData, vitalSigns,
     actionInProgress, selectedCaseType, gameIntervalId, updateDisplays,
     calculateMAP, formatGameTime, addMessage, addResult, resetGame,
-    setSelectedCaseType,
+    // Import all setter functions
+    setGameActive, setInGameTime, incrementInGameTime, setCost, setScore, 
+    setCaseHistory, addToCaseHistory, setPatientData, updatePatientData, 
+    setVitalSigns, updateVitalSigns, updateVitalSign, setActionInProgress, 
+    setSelectedCaseType, setGameIntervalId,
+    // DOM elements
     messageArea, startGameButton, caseButtons, chatInput, sendMessageButton,
     actionButtons, preGameMessage, patientDataSection, patientDemographics,
     chiefComplaint, historySection, vitalsDisplay
@@ -21,13 +26,13 @@ async function startGame() {
         return;
     }
     
-    // Reset game state
-    gameActive = true;
-    inGameTime = 0;
-    cost = 0;
-    score = 0;
-    caseHistory = [];
-    actionInProgress = true; // Prevent actions during initialization
+    // Reset game state using setter functions
+    setGameActive(true);
+    setInGameTime(0);
+    setCost(0);
+    setScore(0);
+    setCaseHistory([]);
+    setActionInProgress(true); // Prevent actions during initialization
     
     // Update UI
     updateDisplays();
@@ -43,7 +48,7 @@ async function startGame() {
         await generatePatientCase();
         
         // Start the game timer
-        gameIntervalId = setInterval(updateGameTime, 1000);
+        setGameIntervalId(setInterval(updateGameTime, 1000));
         
         // Enable game controls
         chatInput.disabled = false;
@@ -61,7 +66,7 @@ async function startGame() {
         // Update vital signs immediately
         updateVitalSigns();
         
-        actionInProgress = false;
+        setActionInProgress(false);
     } catch (error) {
         console.error('Error starting game:', error);
         messageArea.innerHTML += '<div class="message system-message">Error starting game. Please try again.</div>';
@@ -117,14 +122,14 @@ async function generatePatientCase() {
         // Parse the JSON
         const newPatientData = JSON.parse(cleanedContent);
         
-        // Update the global patient data object
-        Object.assign(patientData, newPatientData);
+        // Update the global patient data object using setters
+        updatePatientData(newPatientData);
         
         // Update the global vital signs object
-        Object.assign(vitalSigns, patientData.vitalSigns);
+        updateVitalSigns(patientData.vitalSigns);
         
         // Calculate MAP (Mean Arterial Pressure)
-        vitalSigns.MAP = calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic);
+        updateVitalSign('MAP', calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic));
         
         // Update UI with patient information
         patientDemographics.textContent = patientData.demographics;
@@ -132,7 +137,7 @@ async function generatePatientCase() {
         historySection.textContent = patientData.history;
         
         // Add to case history
-        caseHistory.push({
+        addToCaseHistory({
             time: inGameTime,
             event: 'Case started',
             data: patientData
@@ -158,12 +163,10 @@ async function generatePatientCase() {
             diagnosis: "Acute Myocardial Infarction"
         };
         
-        // Update the global patient data object
-        Object.assign(patientData, fallbackCase);
-        
-        // Update the global vital signs object
-        Object.assign(vitalSigns, fallbackCase.vitalSigns);
-        vitalSigns.MAP = calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic);
+        // Update using setter functions
+        updatePatientData(fallbackCase);
+        updateVitalSigns(fallbackCase.vitalSigns);
+        updateVitalSign('MAP', calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic));
         
         // Update UI with patient information
         patientDemographics.textContent = patientData.demographics;
@@ -171,7 +174,7 @@ async function generatePatientCase() {
         historySection.textContent = patientData.history;
         
         // Add to case history
-        caseHistory.push({
+        addToCaseHistory({
             time: inGameTime,
             event: 'Case started (fallback)',
             data: patientData
@@ -183,8 +186,8 @@ async function generatePatientCase() {
 
 // Update game time (called every second)
 function updateGameTime() {
-    // Increment real-time counter (seconds)
-    inGameTime += 1;
+    // Increment real-time counter (seconds) using setter
+    incrementInGameTime();
     
     // Update displays
     updateDisplays();
@@ -243,15 +246,17 @@ async function updateVitalSigns() {
             const cleanedContent = jsonMatch[0].replace(/```json\n|```\n|```/g, '');
             console.log("Cleaned vitals content:", cleanedContent);
             const updatedVitals = JSON.parse(cleanedContent);
-            Object.assign(vitalSigns, updatedVitals);
+            // Update using setter
+            updateVitalSigns(updatedVitals);
         } else {
             // Fallback: try to parse the entire content
             const updatedVitals = JSON.parse(content);
-            Object.assign(vitalSigns, updatedVitals);
+            // Update using setter
+            updateVitalSigns(updatedVitals);
         }
         
         // Calculate MAP
-        vitalSigns.MAP = calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic);
+        updateVitalSign('MAP', calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic));
         
         // Display updated vital signs
         displayVitalSigns();
@@ -265,22 +270,23 @@ async function updateVitalSigns() {
         // Fallback: Create small realistic changes to vitals
         const randomChange = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
         
-        vitalSigns.HR += randomChange(-5, 5);
-        vitalSigns.BPSystolic += randomChange(-8, 8);
-        vitalSigns.BPDiastolic += randomChange(-5, 5);
-        vitalSigns.RR += randomChange(-2, 2);
-        vitalSigns.Temp += randomChange(-1, 1) * 0.1;
-        vitalSigns.O2Sat += randomChange(-2, 2);
+        // Use individual updateVitalSign calls for each change
+        updateVitalSign('HR', vitalSigns.HR + randomChange(-5, 5));
+        updateVitalSign('BPSystolic', vitalSigns.BPSystolic + randomChange(-8, 8));
+        updateVitalSign('BPDiastolic', vitalSigns.BPDiastolic + randomChange(-5, 5));
+        updateVitalSign('RR', vitalSigns.RR + randomChange(-2, 2));
+        updateVitalSign('Temp', vitalSigns.Temp + randomChange(-1, 1) * 0.1);
+        updateVitalSign('O2Sat', vitalSigns.O2Sat + randomChange(-2, 2));
         
         // Keep values in realistic ranges
-        vitalSigns.HR = Math.max(40, Math.min(180, vitalSigns.HR));
-        vitalSigns.BPSystolic = Math.max(70, Math.min(220, vitalSigns.BPSystolic));
-        vitalSigns.BPDiastolic = Math.max(40, Math.min(120, vitalSigns.BPDiastolic));
-        vitalSigns.RR = Math.max(8, Math.min(40, vitalSigns.RR));
-        vitalSigns.Temp = Math.max(35, Math.min(41, vitalSigns.Temp));
-        vitalSigns.O2Sat = Math.max(75, Math.min(100, vitalSigns.O2Sat));
+        updateVitalSign('HR', Math.max(40, Math.min(180, vitalSigns.HR)));
+        updateVitalSign('BPSystolic', Math.max(70, Math.min(220, vitalSigns.BPSystolic)));
+        updateVitalSign('BPDiastolic', Math.max(40, Math.min(120, vitalSigns.BPDiastolic)));
+        updateVitalSign('RR', Math.max(8, Math.min(40, vitalSigns.RR)));
+        updateVitalSign('Temp', Math.max(35, Math.min(41, vitalSigns.Temp)));
+        updateVitalSign('O2Sat', Math.max(75, Math.min(100, vitalSigns.O2Sat)));
         
-        vitalSigns.MAP = calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic);
+        updateVitalSign('MAP', calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic));
         
         displayVitalSigns();
         checkCriticalVitals();
@@ -354,10 +360,11 @@ function displayVitalSigns() {
     `;
 }
 
+// Set case type
 export function setCaseType(type) {
-  console.log("setCaseType called with:", type);
-  setSelectedCaseType(type);
-  console.log("After setSelectedCaseType call");
+    console.log("setCaseType called with:", type);
+    setSelectedCaseType(type);
+    console.log("After setSelectedCaseType call");
     
     // Update UI to show selected case
     document.querySelectorAll('.case-button').forEach(button => {
