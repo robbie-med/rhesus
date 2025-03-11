@@ -194,18 +194,18 @@ Return only valid JSON without any markdown formatting or additional text.`;
         
         // Create a fallback patient case for testing
         const fallbackCase = {
-            demographics: "45-year-old male with history of hypertension and diabetes",
-            chiefComplaint: "Chest pain and shortness of breath",
-            history: "Patient reports sudden onset of chest pain radiating to left arm, associated with diaphoresis and dyspnea, starting 2 hours ago while at rest.",
+            demographics: "Error",
+            chiefComplaint: "Can't parse API output",
+            history: "Sorry about this, robbie.med will try to fix this ASAP.",
             vitalSigns: {
-                HR: 110,
-                BPSystolic: 160,
-                BPDiastolic: 95,
-                RR: 24,
-                Temp: 37.2,
-                O2Sat: 94
+                HR: 1,
+                BPSystolic: 16,
+                BPDiastolic: 9.5,
+                RR: 2.4,
+                Temp: 30.2,
+                O2Sat: 9
             },
-            diagnosis: "Acute Myocardial Infarction"
+            diagnosis: "Acute AI Malfunction"
         };
         
         // Update using setter functions
