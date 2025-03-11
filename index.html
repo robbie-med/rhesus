@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Resident Simulation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            padding: 10px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .game-info {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .panel {
+            flex: 1;
+            margin: 10px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 10px;
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .panel-content {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        
+        .vitals-section {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .chat-section {
+            margin-top: 10px;
+        }
+        
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #eee;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .chat-input button {
+            margin-left: 10px;
+            padding: 8px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .chat-input button:hover {
+            background-color: #2980b9;
+        }
+        
+        .action-button {
+            margin: 5px;
+            padding: 10px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .action-button:hover {
+            background-color: #27ae60;
+        }
+
+        .case-selector {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .case-button {
+            margin: 5px;
+            padding: 8px 15px;
+            background-color: #9b59b6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .case-button:hover {
+            background-color: #8e44ad;
+        }
+        
+        .case-button.selected {
+            background-color: #8e44ad;
+            outline: 2px solid #6c3483;
+        }
+        
+        .start-game {
+            padding: 10px 20px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .start-game:hover {
+            background-color: #c0392b;
+        }
+
+        #message-area {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .message {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .player-message {
+            background-color: #e8f4f8;
+            text-align: right;
+        }
+
+        .attending-message {
+            background-color: #f0e8f8;
+        }
+
+        .nurse-message {
+            background-color: #e8f8e8;
+        }
+
+        .system-message {
+            background-color: #f8e8e8;
+            font-style: italic;
+        }
+
+        .disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .hidden {
+            display: none;
+        }
+        
+        .result {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .result.order {
+            border-left-color: #2ecc71;
+            background-color: #eafaf1;
+        }
+        
+        .result.result {
+            border-left-color: #3498db;
+            background-color: #ebf5fb;
+        }
+        
+        .result.error {
+            border-left-color: #e74c3c;
+            background-color: #fadbd8;
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        
+        .result-content {
+            font-size: 0.95em;
+        }
+        
+        #end-game {
+            margin-top: 20px;
+            padding: 8px 15px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        #end-game:hover {
+            background-color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Medical Resident Simulation</h1>
+        <div class="game-info">
+            <div id="time-display">Time: 00:00</div>
+            <div id="score-display">Score: 0</div>
+            <div id="cost-display">Cost: $0.00</div>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="panel">
+            <div class="panel-header">Data</div>
+            <div class="panel-content" id="data-panel">
+                <div class="case-selector">
+                    <h3>Select Case Type:</h3>
+                    <button class="case-button" data-type="cardiovascular">Cardiovascular</button>
+                    <button class="case-button" data-type="infectious">Infectious Disease</button>
+                    <button class="case-button" data-type="emergency">Emergency</button>
+                    <button class="case-button" data-type="miscellaneous">Miscellaneous</button>
+                    <div>
+                        <button class="start-game disabled" id="start-game" disabled>Start Case</button>
+                    </div>
+                </div>
+                <div id="patient-data" class="hidden">
+                    <h3>Patient Information</h3>
+                    <div id="patient-demographics"></div>
+                    <h3>Chief Complaint</h3>
+                    <div id="chief-complaint"></div>
+                    <h3>History</h3>
+                    <div id="history"></div>
+                </div>
+                <div>
+                    <button id="end-game" class="hidden">End Case</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">Results</div>
+            <div class="panel-content" id="results-panel">
+                <div class="vitals-section">
+                    <h3>Vital Signs</h3>
+                    <div id="vitals-display">
+                        <p>Select a case type and start the game to see vital signs.</p>
+                    </div>
+                </div>
+                <div id="results-area">
+                    <p>Results from your orders will appear here.</p>
+                </div>
+                <div class="chat-section">
+                    <h3>Communications</h3>
+                    <div id="message-area"></div>
+                    <div class="chat-input">
+                        <input type="text" id="chat-input" placeholder="Use @md to chat with Attending or @rn for Nurse" disabled>
+                        <button id="send-message" disabled>Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">Actions</div>
+            <div class="panel-content" id="actions-panel">
+                <div id="action-buttons" class="hidden">
+                    <button class="action-button" data-action="drugs">Drugs</button>
+                    <button class="action-button" data-action="labs">Labs</button>
+                    <button class="action-button" data-action="exam">Physical Exam</button>
+                    <button class="action-button" data-action="imaging">Imaging</button>
+                    <button class="action-button" data-action="procedures">Procedures</button>
+                    <button class="action-button" data-action="consults">Consults</button>
+                </div>
+                <div id="sub-actions" class="hidden">
+                    <!-- This will be populated with submenus based on the selected action -->
+                </div>
+                <div id="order-entry" class="hidden">
+                    <!-- This will be populated with order forms based on the selected sub-action -->
+                </div>
+                <div id="pre-game-message">
+                    <h3>Welcome to the Medical Resident Simulation!</h3>
+                    <p>This game simulates clinical scenarios to test your medical knowledge and decision-making skills.</p>
+                    <p>To begin, select a case type from the Data panel and click "Start Case".</p>
+                    <p>You'll need to diagnose and treat your patient, communicating with your Attending and Nurse along the way.</p>
+                    <p>Remember, every action has consequences. Good luck!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load the main.js module which will handle importing the other modules -->
+    <script type="module" src="main.js"></script>
+</body>
+</html>
