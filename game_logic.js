@@ -13,11 +13,15 @@ import {
     // DOM elements
     messageArea, startGameButton, caseButtons, chatInput, sendMessageButton,
     actionButtons, preGameMessage, patientDataSection, patientDemographics,
-    chiefComplaint, historySection, vitalsDisplay
+    chiefComplaint, historySection, vitalsDisplay, resultsArea
 } from './utils.js';
 
 // Import API functions
 import { callAPI } from './api.js';
+
+// Add patient status tracking
+let patientDeceased = false;
+let patientCured = false;
 
 // Start the game
 async function startGame() {
@@ -33,6 +37,10 @@ async function startGame() {
     setScore(0);
     setCaseHistory([]);
     setActionInProgress(true); // Prevent actions during initialization
+    
+    // Reset patient status
+    patientDeceased = false;
+    patientCured = false;
     
     // Update UI
     updateDisplays();
@@ -87,7 +95,7 @@ async function generatePatientCase() {
 		   - Any significant past medical history, family history, social history (smoking, alcohol, drug use)
 		   - Medications the patient is currently taking
 		 2. Chief Complaint (CC):
-		   - A brief and natural patient-reported reason for the visit (e.g., "I’ve been feeling really short of breath for the past two days.")
+		   - A brief and natural patient-reported reason for the visit (e.g., "I've been feeling really short of breath for the past two days.")
 		 3. History of Present Illness (HPI):
 		   - Detailed narrative including:
 			 - Onset (acute, chronic, progressive)
@@ -121,10 +129,10 @@ async function generatePatientCase() {
 		   - Explain why this diagnosis fits the patient presentation.
 		Additional Features for Interactivity:
 		1. Dynamic Patient Responses:
-		   - If the player asks a relevant question, provide a realistic patient response (e.g., “No, I haven’t had any recent fevers, but I did have a bad cough last week.”)
-		   - If the player asks an irrelevant or vague question, make the patient respond accordingly (e.g., “I’m not sure what you mean, doc.”)
+		   - If the player asks a relevant question, provide a realistic patient response (e.g., "No, I haven't had any recent fevers, but I did have a bad cough last week.")
+		   - If the player asks an irrelevant or vague question, make the patient respond accordingly (e.g., "I'm not sure what you mean, doc.")
 		2. Progressive Case Evolution:
-		   - The patient’s condition may worsen if the correct intervention is delayed.
+		   - The patient's condition may worsen if the correct intervention is delayed.
 		   - Critical findings should become more apparent over time.
 		3. Scoring System (if applicable):
 		   - The player is scored based on:
@@ -223,6 +231,9 @@ Return only valid JSON without any markdown formatting or additional text.`;
 
 // Update game time (called every second)
 function updateGameTime() {
+    // Don't update if patient is in a terminal state
+    if (patientDeceased || patientCured) return;
+    
     // Increment real-time counter (seconds) using setter
     incrementInGameTime();
     
@@ -233,14 +244,51 @@ function updateGameTime() {
     if (inGameTime % 10 === 0) {
         refreshVitalSigns();
     }
+    
+    // Check if the case should be auto-resolved after a long period
+    // This prevents endless games if the player doesn't take decisive action
+    if (inGameTime > 6000) { // After some minutes (in-game time) with no resolution
+        checkForAutoResolution();
+    }
+}
+
+// Check if we should auto-resolve a case that's gone on too long
+function checkForAutoResolution() {
+    // Only proceed if we haven't already reached a terminal state
+    if (!patientDeceased && !patientCured) {
+        // If score is positive, patient is likely doing well
+        if (score > 5) {
+            handlePatientCured("The patient's condition has stabilized due to your interventions.");
+        } 
+        // If score is negative, patient is likely doing poorly
+        else if (score < -5) {
+            handlePatientDeath("The patient's condition has deteriorated despite treatment attempts.");
+        }
+    }
 }
 
 // Update vital signs based on patient condition and treatments
 async function refreshVitalSigns() {
     if (!gameActive) return;
     
-    // Create a prompt for updating vital signs
+    // If patient is already in a terminal state, don't update vitals
+    if (patientDeceased) {
+        displayCardiacArrestVitals();
+        return;
+    }
     
+    if (patientCured) {
+        displayStableVitals();
+        return;
+    }
+    
+    // Check case history for death or recovery indications
+    checkResultsForTerminalStatus();
+    
+    // If patient entered terminal state, don't proceed with vitals update
+    if (patientDeceased || patientCured) return;
+    
+    // Create a prompt for updating vital signs
     const vitalsPrompt = `You are a real-time patient physiology simulator for an internal medicine resident training game. Your goal is to update the patient's vital signs dynamically and realistically  taking into account the underlying condition and any interventions performed so far.  Consider:
     Current patient information:
     - Diagnosis (hidden from player): ${patientData.diagnosis}
@@ -309,6 +357,12 @@ async function refreshVitalSigns() {
         // Check for critical vitals and have nurse alert if needed
         checkCriticalVitals();
         
+        // Check for recovery based on vital signs
+        checkVitalsForRecovery();
+        
+        // Check for death based on vital signs
+        checkVitalsForDeath();
+        
     } catch (error) {
         console.error('Error updating vital signs:', error);
         
@@ -338,8 +392,283 @@ async function refreshVitalSigns() {
     }
 }
 
+// Check case history results for indications of patient death or recovery
+function checkResultsForTerminalStatus() {
+    // Get the recent results from case history
+    const recentResults = caseHistory
+        .filter(event => event.event.includes("Result received"))
+        .map(event => event.data?.result || "")
+        .join(" ")
+        .toLowerCase();
+    
+    // Check for death indicators
+    if (recentResults.includes("cardiac arrest") || 
+        recentResults.includes("patient died") || 
+        recentResults.includes("death") ||
+        recentResults.includes("fatal") ||
+        recentResults.includes("expired") ||
+        recentResults.includes("deceased")) {
+        
+        // Extract the cause of death if possible
+        let causeOfDeath = "Cardiac arrest";
+        if (recentResults.includes("due to") || recentResults.includes("caused by")) {
+            const causePhrases = ["due to", "caused by", "result of", "secondary to"];
+            for (const phrase of causePhrases) {
+                if (recentResults.includes(phrase)) {
+                    const parts = recentResults.split(phrase);
+                    if (parts.length > 1) {
+                        // Extract a reasonable length cause
+                        causeOfDeath = parts[1].split('.')[0].trim();
+                        causeOfDeath = causeOfDeath.charAt(0).toUpperCase() + causeOfDeath.slice(1);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        handlePatientDeath(causeOfDeath);
+    }
+    
+    // Check for recovery indicators
+    if (recentResults.includes("fully recovered") || 
+        recentResults.includes("discharged") || 
+        recentResults.includes("condition has stabilized") ||
+        recentResults.includes("marked improvement") ||
+        recentResults.includes("symptoms resolved")) {
+        
+        handlePatientCured("The patient's condition has stabilized and they're ready for discharge");
+    }
+}
+
+// Check vital signs for potential patient death
+function checkVitalsForDeath() {
+    // If any vitals indicate severe deterioration
+    if ((vitalSigns.HR < 20 || vitalSigns.HR > 180) ||
+        (vitalSigns.BPSystolic < 50) ||
+        (vitalSigns.O2Sat < 60) ||
+        (vitalSigns.RR < 5)) {
+        
+        // Determine cause based on the most severe abnormal vital
+        let cause = "Cardiopulmonary collapse";
+        
+        if (vitalSigns.HR < 20) {
+            cause = "Severe bradycardia leading to cardiac arrest";
+        } else if (vitalSigns.HR > 180) {
+            cause = "Malignant tachyarrhythmia";
+        } else if (vitalSigns.BPSystolic < 50) {
+            cause = "Profound hypotension and circulatory collapse";
+        } else if (vitalSigns.O2Sat < 60) {
+            cause = "Severe hypoxemia";
+        } else if (vitalSigns.RR < 5) {
+            cause = "Respiratory failure";
+        }
+        
+        handlePatientDeath(cause);
+    }
+}
+
+// Check vital signs for potential patient recovery
+function checkVitalsForRecovery() {
+    // If all vitals are within normal ranges and the score is positive
+    if (score > 10 &&
+        (vitalSigns.HR >= 60 && vitalSigns.HR <= 100) &&
+        (vitalSigns.BPSystolic >= 100 && vitalSigns.BPSystolic <= 140) &&
+        (vitalSigns.BPDiastolic >= 60 && vitalSigns.BPDiastolic <= 90) &&
+        (vitalSigns.RR >= 12 && vitalSigns.RR <= 20) &&
+        (vitalSigns.Temp >= 36.5 && vitalSigns.Temp <= 37.5) &&
+        (vitalSigns.O2Sat >= 95)) {
+        
+        // Check how long vitals have been stable
+        const stableVitals = caseHistory.filter(event => 
+            event.event === 'Vitals checked' && 
+            event.data?.HR >= 60 && event.data?.HR <= 100 &&
+            event.data?.BPSystolic >= 100 && event.data?.BPSystolic <= 140 &&
+            event.data?.O2Sat >= 95
+        );
+        
+        // If vitals have been stable for multiple checks
+        if (stableVitals.length >= 3) {
+            handlePatientCured("Patient has maintained stable vital signs and is responding well to treatment");
+        }
+    }
+}
+
+// Display cardiac arrest vitals when patient dies
+function displayCardiacArrestVitals() {
+    // Set vitals to reflect cardiac arrest
+    updateVitalSign('HR', 0);
+    updateVitalSign('BPSystolic', 0);
+    updateVitalSign('BPDiastolic', 0);
+    updateVitalSign('MAP', 0);
+    updateVitalSign('RR', 0);
+    updateVitalSign('O2Sat', 0);
+    
+    // Update display with cardiac arrest vitals
+    vitalsDisplay.innerHTML = `
+        <p><strong>HR:</strong> 0 bpm</p>
+        <p><strong>BP:</strong> 0/0 mmHg</p>
+        <p><strong>MAP:</strong> 0 mmHg</p>
+        <p><strong>RR:</strong> 0 breaths/min</p>
+        <p><strong>Temp:</strong> ${vitalSigns.Temp.toFixed(1)}°C</p>
+        <p><strong>O2 Sat:</strong> 0%</p>
+        <p style="color: red; font-weight: bold;">CARDIAC ARREST</p>
+        <p><em>Last updated: ${formatGameTime(inGameTime)}</em></p>
+    `;
+}
+
+// Display stable vitals when patient is cured
+function displayStableVitals() {
+    // Display normal/stable vitals
+    vitalsDisplay.innerHTML = `
+        <p><strong>HR:</strong> ${vitalSigns.HR} bpm</p>
+        <p><strong>BP:</strong> ${vitalSigns.BPSystolic}/${vitalSigns.BPDiastolic} mmHg</p>
+        <p><strong>MAP:</strong> ${vitalSigns.MAP} mmHg</p>
+        <p><strong>RR:</strong> ${vitalSigns.RR} breaths/min</p>
+        <p><strong>Temp:</strong> ${vitalSigns.Temp.toFixed(1)}°C</p>
+        <p><strong>O2 Sat:</strong> ${vitalSigns.O2Sat}%</p>
+        <p style="color: green; font-weight: bold;">STABLE</p>
+        <p><em>Last updated: ${formatGameTime(inGameTime)}</em></p>
+    `;
+}
+
+// Handle patient death
+function handlePatientDeath(cause) {
+    // Only proceed if not already in a terminal state
+    if (patientDeceased || patientCured) return;
+    
+    console.log("Patient death handler triggered:", cause);
+    
+    // Set patient as deceased
+    patientDeceased = true;
+    
+    // Display cardiac arrest vitals
+    displayCardiacArrestVitals();
+    
+    // Add system message about code blue
+    addMessage('system', 'CODE BLUE! The patient has gone into cardiac arrest.');
+    
+    // Add nurse message about the event
+    addMessage('nurse', `Dr., the patient is in cardiac arrest! ${cause || ""}. Code team is responding.`);
+    
+    // Create game over message
+    const gameOverMessage = document.createElement('div');
+    gameOverMessage.className = 'result error';
+    gameOverMessage.innerHTML = `
+        <div class="result-header">
+            <span class="result-time">${formatGameTime(inGameTime)}</span>
+            <span class="result-type">CRITICAL EVENT</span>
+        </div>
+        <div class="result-content">
+            <h3>Patient Expired</h3>
+            <p>The patient has gone into cardiac arrest and has died.</p>
+            <p><strong>Cause:</strong> ${cause || "Cardiopulmonary collapse"}</p>
+            <p>Your final score: ${score}</p>
+            <p>Please review the case and consider what could have been done differently.</p>
+        </div>
+    `;
+    resultsArea.appendChild(gameOverMessage);
+    resultsArea.scrollTop = resultsArea.scrollHeight;
+    
+    // Add to case history
+    addToCaseHistory({
+        time: inGameTime,
+        event: `Patient deceased: ${cause || "Cardiopulmonary collapse"}`,
+        data: {
+            vitalSigns: {
+                HR: 0,
+                BPSystolic: 0,
+                BPDiastolic: 0,
+                MAP: 0,
+                RR: 0,
+                O2Sat: 0,
+                Temp: vitalSigns.Temp
+            }
+        }
+    });
+    
+    // Disable action buttons
+    if (actionButtons) {
+        actionButtons.querySelectorAll('.action-button').forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('disabled');
+        });
+    }
+    
+    // Show end game button
+    document.getElementById('end-game').classList.remove('hidden');
+    
+    // Attending message about debrief
+    setTimeout(() => {
+        addMessage('attending', `The patient didn't make it. We should debrief on this case to discuss what happened and what we could have done differently.`);
+    }, 3000);
+}
+
+// Handle patient cured
+function handlePatientCured(reason) {
+    // Only proceed if not already in a terminal state
+    if (patientDeceased || patientCured) return;
+    
+    console.log("Patient cured handler triggered:", reason);
+    
+    // Set patient as cured
+    patientCured = true;
+    
+    // Add messages about recovery
+    addMessage('nurse', `Dr., the patient's condition has markedly improved!`);
+    
+    // Create success message
+    const successMessage = document.createElement('div');
+    successMessage.className = 'result';
+    successMessage.style.borderLeftColor = '#2ecc71';
+    successMessage.style.backgroundColor = '#e8f8f2';
+    successMessage.innerHTML = `
+        <div class="result-header">
+            <span class="result-time">${formatGameTime(inGameTime)}</span>
+            <span class="result-type">CASE RESOLVED</span>
+        </div>
+        <div class="result-content">
+            <h3>Patient Successfully Treated</h3>
+            <p>${reason}</p>
+            <p><strong>Diagnosis:</strong> ${patientData.diagnosis}</p>
+            <p><strong>Your score:</strong> ${score}</p>
+            <p>Well done! The patient can now be transferred to a regular unit for continued care.</p>
+        </div>
+    `;
+    resultsArea.appendChild(successMessage);
+    resultsArea.scrollTop = resultsArea.scrollHeight;
+    
+    // Add to case history
+    addToCaseHistory({
+        time: inGameTime,
+        event: `Patient successfully treated: ${reason}`,
+        data: { diagnosis: patientData.diagnosis }
+    });
+    
+    // Display stable vitals
+    displayStableVitals();
+    
+    // Disable action buttons
+    if (actionButtons) {
+        actionButtons.querySelectorAll('.action-button').forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('disabled');
+        });
+    }
+    
+    // Show end game button
+    document.getElementById('end-game').classList.remove('hidden');
+    
+    // Attending message of congratulations
+    setTimeout(() => {
+        addMessage('attending', `Great job, doctor! The patient is responding well to your treatment plan. The correct diagnosis was ${patientData.diagnosis}.`);
+    }, 3000);
+}
+
 // Check for critical vital signs and have the nurse alert if needed
 function checkCriticalVitals() {
+    // Skip if patient is already in a terminal state
+    if (patientDeceased || patientCured) return;
+    
     // Define critical thresholds
     const criticalThresholds = {
         HR: { low: 40, high: 130 },
@@ -390,16 +719,36 @@ function checkCriticalVitals() {
             addMessage('nurse', criticalMessages[randomIndex]);
         }
     }
+    
+    // Add vitals to case history
+    addToCaseHistory({
+        time: inGameTime,
+        event: 'Vitals checked',
+        data: { ...vitalSigns }
+    });
 }
 
 // Display vital signs in the UI
 function displayVitalSigns() {
+    // If patient is deceased, show cardiac arrest vitals
+    if (patientDeceased) {
+        displayCardiacArrestVitals();
+        return;
+    }
+    
+    // If patient is cured, show stable vitals
+    if (patientCured) {
+        displayStableVitals();
+        return;
+    }
+    
+    // Display normal vitals
     vitalsDisplay.innerHTML = `
         <p><strong>HR:</strong> ${vitalSigns.HR} bpm</p>
         <p><strong>BP:</strong> ${vitalSigns.BPSystolic}/${vitalSigns.BPDiastolic} mmHg</p>
         <p><strong>MAP:</strong> ${vitalSigns.MAP} mmHg</p>
         <p><strong>RR:</strong> ${vitalSigns.RR} breaths/min</p>
-        <p><strong>Temp:</strong> ${vitalSigns.Temp}°C</p>
+        <p><strong>Temp:</strong> ${vitalSigns.Temp.toFixed(1)}°C</p>
         <p><strong>O2 Sat:</strong> ${vitalSigns.O2Sat}%</p>
         <p><em>Last updated: ${formatGameTime(inGameTime)}</em></p>
     `;
@@ -430,5 +779,9 @@ export {
     startGame,
     updateGameTime,
     checkCriticalVitals,
-    displayVitalSigns
+    displayVitalSigns,
+    handlePatientDeath,
+    handlePatientCured,
+    patientDeceased,
+    patientCured
 };
