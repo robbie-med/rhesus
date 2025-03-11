@@ -298,8 +298,8 @@ async function refreshVitalSigns() {
 function checkCriticalVitals() {
     // Define critical thresholds
     const criticalThresholds = {
-        HR: { low: 40, high: 130 },
-        BPSystolic: { low: 90, high: 180 },
+        HR: { low: 40, high: 190 },
+        BPSystolic: { low: 80, high: 200 },
         RR: { low: 8, high: 30 },
         Temp: { low: 35, high: 39.5 },
         O2Sat: { low: 90, high: 100 } // High is just a max value
