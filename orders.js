@@ -196,7 +196,7 @@ async function submitOrder(action, subActionId, subActionName) {
         console.log("submitOrder returning early because gameActive is false or actionInProgress is true");
         return;
     }
-    setActionInProgress = true;
+    setActionInProgress(true);
     
     // Get the order details based on the form
     let orderDetails = {};
@@ -311,7 +311,7 @@ async function submitOrder(action, subActionId, subActionName) {
     // Generate a result for the order
     await generateOrderResult(orderDetails);
     
-    setActionInProgress = false;
+    setActionInProgress(false);
 }
 
 // Export functions for use in other modules
