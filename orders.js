@@ -1,7 +1,10 @@
 // Import shared functions and variables
-import { addMessage, addResult, incrementCost, formatGameTime, 
-         gameActive, actionInProgress, caseHistory, vitalSigns, patientData, 
-         score, updateDisplays, inGameTime, setActionInProgress } from './utils.js';
+import { 
+  addMessage, addResult, incrementCost, formatGameTime, 
+  gameActive, actionInProgress, caseHistory, vitalSigns, patientData, 
+  score, updateDisplays, inGameTime, setActionInProgress,
+  orderEntryArea, subActionsArea
+} from './utils.js';
 import { callAPI } from './api.js';
 
 // Evaluate an order for scoring
@@ -210,7 +213,7 @@ async function submitOrder(action, subActionId, subActionName) {
             
             if (!medication || !dosage) {
                 alert('Please select a medication and specify a dosage.');
-                setActionInProgress = false;
+                setActionInProgress(false);
                 return;
             }
             
@@ -250,7 +253,7 @@ async function submitOrder(action, subActionId, subActionName) {
             
             if (!imagingDetails) {
                 alert('Please specify the body region and clinical question.');
-                setActionInProgress = false;
+                setActionInProgress(false);
                 return;
             }
             
@@ -277,7 +280,7 @@ async function submitOrder(action, subActionId, subActionName) {
             
             if (!consultReason) {
                 alert('Please provide a reason for the consult.');
-                setActionInProgress = false;
+                setActionInProgress(false);
                 return;
             }
             
