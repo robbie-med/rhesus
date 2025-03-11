@@ -154,11 +154,6 @@ async function generateOrderResult(orderDetails) {
 }
 
 // Generate a summary of an order for display
-console.log("submitOrder called:", { gameActive, actionInProgress });
-if (!gameActive || actionInProgress) {
-    console.log("submitOrder returning early because gameActive is false or actionInProgress is true");
-    return;
-}
 function getOrderSummary(orderDetails) {
     switch (orderDetails.type) {
         case 'medication':
@@ -196,8 +191,11 @@ function getLableDisplayName(labId) {
 
 // Submit an order
 async function submitOrder(action, subActionId, subActionName) {
-    if (!gameActive || setActionInProgress) return;
-    
+    console.log("submitOrder called:", { gameActive, actionInProgress });
+    if (!gameActive || actionInProgress) {
+        console.log("submitOrder returning early because gameActive is false or actionInProgress is true");
+        return;
+    }
     setActionInProgress = true;
     
     // Get the order details based on the form
