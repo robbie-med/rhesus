@@ -10,16 +10,13 @@ export let patientData = {};
 export let vitalSigns = {};
 export let actionInProgress = false;
 export let selectedCaseType = null;
+export let gameIntervalId = null;
+
+// Function to set the case type (to avoid direct modification of the imported variable)
 export function setSelectedCaseType(type) {
   console.log("Setting selectedCaseType to:", type);
   selectedCaseType = type;
   console.log("New value:", selectedCaseType);
-export let gameIntervalId = null;
-
-
-// Function to set the case type (to avoid direct modification of the imported variable)
-export function setSelectedCaseType(type) {
-  selectedCaseType = type;
 }
 
 // DOM element references
