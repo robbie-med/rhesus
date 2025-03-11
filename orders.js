@@ -122,7 +122,7 @@ async function generateOrderResult(orderDetails) {
     
     Please provide a realistic, medically accurate result for this ${orderDetails.type} order. The response should be appropriate for the patient's underlying condition (${patientData.diagnosis}) but should not explicitly state the diagnosis.
     
-    If this is a medication order, describe the patient's response to the medication.
+    If this is a medication order, describe the patient's response to the medication. It's okay if the patient dies. Be sure to be consistent with the patient's current condition and vitals.  
     If this is a lab test, provide realistic lab values.
     If this is an imaging study, provide findings consistent with the underlying condition.
     If this is a procedure, describe the procedure and any findings.
