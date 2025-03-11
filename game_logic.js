@@ -269,16 +269,10 @@ async function refreshVitalSigns() {
 		- If an incorrect or harmful intervention was given, introduce acute deterioration (e.g., respiratory failure after too much IV fluids in CHF).
 		- If the patient is critically ill, simulate rapid decline unless immediate resuscitative measures are taken.
 		- Consider expected pharmacokinetics & physiology (e.g., beta-blockers reducing HR over time, vasopressors increasing BP rapidly).
-	Example Expected Changes:
-		- Septic Shock (no fluids, no pressors) → BP drops further, HR rises, O₂ sat declines
-		- Septic Shock (fluids given, but no vasopressors yet) → BP stabilizes slightly, HR still high
-		- Acute CHF (given IV fluids) → Sudden drop in O₂ sat, increased RR, worsening BP
-		- Acute CHF (given diuretics and BiPAP) → Gradual HR decrease, improved O₂ sat
-		- DKA (given insulin and fluids correctly) → Gradual HR decrease, BP stabilizes, RR normalizes
-		- DKA (insulin given before fluids) → Acute BP drop, HR rises further
+  		- Consider drug-drug interactions that result in crystalization or other adverse effects 
+    		- Consider the deadly effects of massive overdose, or inappropriate meds.  It's okay if the simulated patient dies--this is a training simulator for doctors, and they need to be able to make mistakes and learn from them. 
 	Output Format:
-			Provide updated vital signs as a JSON object with these fields: HR, BPSystolic, BPDiastolic, RR, Temp, O2Sat.
-    Based on the following patient case and timeline of events, update the vital signs realistically,
+    Provide updated vital signs as a JSON object with these fields: HR, BPSystolic, BPDiastolic, RR, Temp, O2Sat.
     Return only valid JSON without any markdown formatting or additional text.`;
     
     try {
