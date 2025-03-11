@@ -12,13 +12,69 @@ export let actionInProgress = false;
 export let selectedCaseType = null;
 export let gameIntervalId = null;
 
-// Function to set the case type
-export function setSelectedCaseType(type) 
-  {
-    console.log("Setting selectedCaseType to:", type);
-    selectedCaseType = type;
-    console.log("New value:", selectedCaseType);
-  }
+// Setter functions for all mutable state variables
+export function setGameActive(value) {
+  console.log("Setting gameActive to:", value);
+  gameActive = value;
+}
+
+export function setInGameTime(value) {
+  inGameTime = value;
+}
+
+export function incrementInGameTime(amount = 1) {
+  inGameTime += amount;
+}
+
+export function setCost(value) {
+  cost = value;
+}
+
+export function setScore(value) {
+  score = value;
+}
+
+export function setCaseHistory(value) {
+  caseHistory = value;
+}
+
+export function addToCaseHistory(item) {
+  caseHistory.push(item);
+}
+
+export function setPatientData(value) {
+  patientData = value;
+}
+
+export function updatePatientData(updates) {
+  Object.assign(patientData, updates);
+}
+
+export function setVitalSigns(value) {
+  vitalSigns = value;
+}
+
+export function updateVitalSigns(updates) {
+  Object.assign(vitalSigns, updates);
+}
+
+export function updateVitalSign(key, value) {
+  vitalSigns[key] = value;
+}
+
+export function setActionInProgress(value) {
+  actionInProgress = value;
+}
+
+export function setSelectedCaseType(type) {
+  console.log("Setting selectedCaseType to:", type);
+  selectedCaseType = type;
+  console.log("New value:", selectedCaseType);
+}
+
+export function setGameIntervalId(value) {
+  gameIntervalId = value;
+}
 
 // DOM element references
 export const chatInput = document.getElementById('chat-input');
@@ -120,11 +176,11 @@ export function addResult(content, type) {
 
 // Reset game state
 export function resetGame() {
-    gameActive = false;
+    setGameActive(false);
     
     if (gameIntervalId) {
         clearInterval(gameIntervalId);
-        gameIntervalId = null;
+        setGameIntervalId(null);
     }
     
     // Enable start button and case selection
