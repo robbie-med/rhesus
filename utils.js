@@ -11,6 +11,8 @@ export let vitalSigns = {};
 export let actionInProgress = false;
 export let selectedCaseType = null;
 export let gameIntervalId = null;
+export let patientDeceased = false;
+export let patientCured = false;
 
 // Setter functions for all mutable state variables
 export function setGameActive(value) {
@@ -74,6 +76,14 @@ export function setSelectedCaseType(type) {
 
 export function setGameIntervalId(value) {
   gameIntervalId = value;
+}
+
+export function setPatientDeceased(value) {
+  patientDeceased = value;
+}
+
+export function setPatientCured(value) {
+  patientCured = value;
 }
 
 // DOM element references
@@ -177,6 +187,8 @@ export function addResult(content, type) {
 // Reset game state
 export function resetGame() {
     setGameActive(false);
+    setPatientDeceased(false);
+    setPatientCured(false);
     
     if (gameIntervalId) {
         clearInterval(gameIntervalId);
