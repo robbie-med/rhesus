@@ -1,6 +1,6 @@
 // Import shared functions and variables
 import { 
-  addMessage, addResult, incrementCost, formatGameTime, 
+  addMessage, addResult, setScore, incrementCost, formatGameTime, 
   gameActive, actionInProgress, caseHistory, vitalSigns, patientData, 
   score, updateDisplays, inGameTime, setActionInProgress,
   orderEntryArea, subActionsArea
