@@ -191,7 +191,7 @@ function getLableDisplayName(labId) {
 
 // Submit an order
 async function submitOrder(action, subActionId, subActionName) {
-    if (!gameActive || actionInProgress) return;
+    if (!gameActive || setactionInProgress) return;
     
     setactionInProgress = true;
     
@@ -274,7 +274,7 @@ async function submitOrder(action, subActionId, subActionName) {
             
             if (!consultReason) {
                 alert('Please provide a reason for the consult.');
-                actionInProgress = false;
+                setactionInProgress = false;
                 return;
             }
             
