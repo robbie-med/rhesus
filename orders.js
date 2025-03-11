@@ -154,6 +154,11 @@ async function generateOrderResult(orderDetails) {
 }
 
 // Generate a summary of an order for display
+console.log("submitOrder called:", { gameActive, actionInProgress });
+if (!gameActive || actionInProgress) {
+    console.log("submitOrder returning early because gameActive is false or actionInProgress is true");
+    return;
+}
 function getOrderSummary(orderDetails) {
     switch (orderDetails.type) {
         case 'medication':
