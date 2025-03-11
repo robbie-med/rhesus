@@ -1,3 +1,5 @@
+console.log("Utils module loaded");
+
 // Shared game state variables
 export let gameActive = false;
 export let inGameTime = 0;
