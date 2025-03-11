@@ -8,7 +8,11 @@ export let patientData = {};
 export let vitalSigns = {};
 export let actionInProgress = false;
 export let selectedCaseType = null;
+export function setSelectedCaseType(type) {
+  selectedCaseType = type;
+}
 export let gameIntervalId = null;
+
 
 // Function to set the case type (to avoid direct modification of the imported variable)
 export function setSelectedCaseType(type) {
