@@ -1,5 +1,8 @@
 // Import shared functions and variables
-import { addMessage, incrementCost, formatGameTime, gameActive, caseHistory, vitalSigns, patientData, chatInput } from './utils.js';
+import { 
+    addMessage, incrementCost, formatGameTime, gameActive, caseHistory, 
+    vitalSigns, patientData, chatInput, patientDeceased, patientCured 
+} from './utils.js';
 import { callAPI } from './api.js';
 
 // Send a message to the attending or nurse
@@ -36,6 +39,27 @@ async function sendMessage() {
 
 // Generate a response from the attending or nurse
 async function generateResponse(recipient, message) {
+    // Handle special responses for terminal states
+    if (patientDeceased) {
+        if (recipient === 'nurse') {
+            addMessage('nurse', "Code team is working on the patient right now. We're in the middle of a cardiac arrest situation.");
+            return;
+        } else if (recipient === 'attending') {
+            addMessage('attending', "We've lost this patient. We should debrief on what happened and what could have been done differently.");
+            return;
+        }
+    }
+    
+    if (patientCured) {
+        if (recipient === 'nurse') {
+            addMessage('nurse', "The patient is stable and doing well. Their vitals have normalized, and they're ready for transfer to the floor.");
+            return;
+        } else if (recipient === 'attending') {
+            addMessage('attending', "Good job with this case. The patient has responded well to your management plan. Any thoughts on outpatient follow-up?");
+            return;
+        }
+    }
+    
     const context = `
     You are role-playing as a ${recipient === 'attending' ? 'teaching attending physician' : 'experienced nurse'} in a medical simulation for internal medicine residents.
     
