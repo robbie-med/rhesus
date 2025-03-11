@@ -199,7 +199,7 @@ function updateGameTime() {
 }
 
 // Update vital signs based on patient condition and treatments
-async function updateVitalSigns() {
+async function refreshVitalSigns() {
     if (!gameActive) return;
     
     // Create a prompt for updating vital signs
