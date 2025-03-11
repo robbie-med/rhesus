@@ -143,7 +143,7 @@ async function generatePatientCase() {
 			 - Diagnostic reasoning and test ordering.
 			 - Correctness of treatment decisions.
 
-Return only valid JSON without any markdown formatting or additional text.`;
+Return only valid JSON with simple structure, without any markdown formatting or additional text. Keep key names short and avoid deep nesting.`;
     
     try {
         const response = await callAPI([{ role: "user", content: prompt }]);
@@ -166,14 +166,34 @@ Return only valid JSON without any markdown formatting or additional text.`;
         
         console.log("Cleaned content:", cleanedContent);
         
-        // Parse the JSON
-        const newPatientData = JSON.parse(cleanedContent);
+        // Parse the JSON with error handling
+        let newPatientData;
+        try {
+            // Try to parse directly first
+            newPatientData = JSON.parse(cleanedContent);
+        } catch (parseError) {
+            console.error("JSON parsing failed:", parseError);
+            
+            // Try to repair the JSON
+            try {
+                const repairedJson = repairJson(cleanedContent);
+                newPatientData = JSON.parse(repairedJson);
+                console.log("Successfully parsed repaired JSON");
+            } catch (repairError) {
+                console.error("Failed to repair JSON:", repairError);
+                // If repair fails, extract key information and create a simplified structure
+                newPatientData = extractPatientData(cleanedContent);
+            }
+        }
+        
+        // Transform the API data structure to our expected format
+        const transformedData = transformPatientData(newPatientData);
         
         // Update the global patient data object using setters
-        updatePatientData(newPatientData);
+        updatePatientData(transformedData);
         
         // Update the global vital signs object - using renamed function
-        setVitalSignsData(patientData.vitalSigns);
+        setVitalSignsData(transformedData.vitalSigns);
         
         // Calculate MAP (Mean Arterial Pressure)
         updateVitalSign('MAP', calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic));
@@ -194,7 +214,7 @@ Return only valid JSON without any markdown formatting or additional text.`;
     } catch (error) {
         console.error('Error parsing patient case:', error);
         
-        // Create a fallback patient case for testing
+      // Create a fallback patient case for testing
         const fallbackCase = {
             demographics: "Error",
             chiefComplaint: "Can't parse API output",
@@ -336,18 +356,31 @@ async function refreshVitalSigns() {
                          content.match(/```\n([\s\S]*?)\n```/) || 
                          content.match(/{[\s\S]*?}/);
         
+        let updatedVitals;
         if (jsonMatch) {
             // If a JSON pattern is found, extract and parse it
             const cleanedContent = jsonMatch[0].replace(/```json\n|```\n|```/g, '');
             console.log("Cleaned vitals content:", cleanedContent);
-            const updatedVitals = JSON.parse(cleanedContent);
+            try {
+                updatedVitals = JSON.parse(cleanedContent);
+            } catch (parseError) {
+                // Try to repair if parsing fails
+                const repairedJson = repairJson(cleanedContent);
+                updatedVitals = JSON.parse(repairedJson);
+            }
             // Update using renamed setter
             setVitalSignsData(updatedVitals);
         } else {
             // Fallback: try to parse the entire content
-            const updatedVitals = JSON.parse(content);
-            // Update using renamed setter
-            setVitalSignsData(updatedVitals);
+            try {
+                updatedVitals = JSON.parse(content);
+                // Update using renamed setter
+                setVitalSignsData(updatedVitals);
+            } catch (parseError) {
+                // If that fails, extract vitals using regex
+                updatedVitals = extractVitalSigns(content);
+                setVitalSignsData(updatedVitals);
+            }
         }
         
         // Calculate MAP
@@ -754,6 +787,321 @@ function displayVitalSigns() {
         <p><strong>O2 Sat:</strong> ${vitalSigns.O2Sat}%</p>
         <p><em>Last updated: ${formatGameTime(inGameTime)}</em></p>
     `;
+}
+
+// Force update the patient UI elements
+function forceUpdatePatientUI() {
+    console.log("Force-updating patient UI");
+    
+    // Get elements directly to ensure we have the latest references
+    const patientDataSection = document.getElementById('patient-data');
+    const demographicsElement = document.getElementById('patient-demographics');
+    const chiefComplaintElement = document.getElementById('chief-complaint');
+    const historyElement = document.getElementById('history');
+    
+    // Log debug info
+    console.log("Patient data elements:", {
+        patientDataSection: !!patientDataSection,
+        demographicsElement: !!demographicsElement,
+        chiefComplaintElement: !!chiefComplaintElement,
+        historyElement: !!historyElement
+    });
+    
+    // Update elements if they exist and we have data
+    if (demographicsElement && patientData?.demographics) {
+        demographicsElement.textContent = patientData.demographics;
+    }
+    
+    if (chiefComplaintElement && patientData?.chiefComplaint) {
+        chiefComplaintElement.textContent = patientData.chiefComplaint;
+    }
+    
+    if (historyElement && patientData?.history) {
+        historyElement.textContent = patientData.history;
+    }
+    
+    // Make sure the section is visible
+    if (patientDataSection) {
+        patientDataSection.classList.remove('hidden');
+        patientDataSection.style.display = 'block'; // Force display
+    }
+}
+
+// Helper functions for JSON parsing and data transformation
+
+// Repair incomplete or malformed JSON
+function repairJson(jsonString) {
+    // Count opening and closing braces/brackets to detect mismatches
+    let openBraces = (jsonString.match(/{/g) || []).length;
+    let closeBraces = (jsonString.match(/}/g) || []).length;
+    let openBrackets = (jsonString.match(/\[/g) || []).length;
+    let closeBrackets = (jsonString.match(/\]/g) || []).length;
+    
+    // Add missing closing braces/brackets
+    let repairedJson = jsonString;
+    
+    // Add missing closing brackets
+    while (openBrackets > closeBrackets) {
+        repairedJson += ']';
+        closeBrackets++;
+    }
+    
+    // Add missing closing braces
+    while (openBraces > closeBraces) {
+        repairedJson += '}';
+        closeBraces++;
+    }
+    
+    return repairedJson;
+}
+
+// Extract patient data using regex when JSON parsing fails
+function extractPatientData(text) {
+    // Default values
+    const patientData = {
+        demographics: "Adult patient",
+        chiefComplaint: "Multiple symptoms",
+        history: "Patient presented with concerning symptoms",
+        vitalSigns: {
+            HR: 80,
+            BPSystolic: 120,
+            BPDiastolic: 80,
+            RR: 16,
+            Temp: 37.0,
+            O2Sat: 98
+        },
+        diagnosis: "Diagnostic workup in progress"
+    };
+    
+    // Extract demographics
+    const ageMatch = text.match(/"age":\s*(\d+)/);
+    const genderMatch = text.match(/"gender":\s*"([^"]*)"/);
+    
+    if (ageMatch && genderMatch) {
+        patientData.demographics = `${ageMatch[1]}-year-old ${genderMatch[1]} patient`;
+    }
+    
+    // Extract chief complaint
+    const chiefComplaintMatch = text.match(/"chiefComplaint":\s*"([^"]*)"/);
+    if (chiefComplaintMatch) {
+        patientData.chiefComplaint = chiefComplaintMatch[1];
+    }
+    
+    // Extract history
+    const historyMatch = text.match(/"narrative":\s*"([^"]*)"/);
+    if (historyMatch) {
+        patientData.history = historyMatch[1];
+    }
+    
+    // Extract vital signs
+    patientData.vitalSigns = extractVitalSigns(text);
+    
+    // Extract diagnosis
+    const diagnosisMatch = text.match(/"correctDiagnosis":\s*"([^"]*)"/);
+    if (diagnosisMatch) {
+        patientData.diagnosis = diagnosisMatch[1];
+    }
+    
+    return patientData;
+}
+
+// Extract vital signs from text
+function extractVitalSigns(text) {
+    const vitals = {
+        HR: 80,
+        BPSystolic: 120,
+        BPDiastolic: 80,
+        RR: 16,
+        Temp: 37.0,
+        O2Sat: 98
+    };
+    
+    // Extract heart rate
+    const hrMatch = text.match(/"heartRate":\s*(\d+)/) || text.match(/"HR":\s*(\d+)/);
+    if (hrMatch) {
+        vitals.HR = parseInt(hrMatch[1]);
+    }
+    
+    // Extract blood pressure
+    const bpMatch = text.match(/"bloodPressure":\s*"([^"]*)"/) || text.match(/"BP":\s*"([^"]*)"/);
+    if (bpMatch) {
+        const parts = bpMatch[1].split('/');
+        if (parts.length === 2) {
+            vitals.BPSystolic = parseInt(parts[0]);
+            vitals.BPDiastolic = parseInt(parts[1]);
+        }
+    } else {
+        // Try to extract systolic and diastolic separately
+        const sysMatch = text.match(/"BPSystolic":\s*(\d+)/);
+        const diaMatch = text.match(/"BPDiastolic":\s*(\d+)/);
+        
+        if (sysMatch) vitals.BPSystolic = parseInt(sysMatch[1]);
+        if (diaMatch) vitals.BPDiastolic = parseInt(diaMatch[1]);
+    }
+    
+    // Extract respiratory rate
+    const rrMatch = text.match(/"respiratoryRate":\s*(\d+)/) || text.match(/"RR":\s*(\d+)/);
+    if (rrMatch) {
+        vitals.RR = parseInt(rrMatch[1]);
+    }
+    
+    // Extract temperature
+    const tempMatch = text.match(/"temperature":\s*"([^"]*)"/) || 
+                     text.match(/"temperature":\s*([\d.]+)/) || 
+                     text.match(/"Temp":\s*([\d.]+)/);
+    if (tempMatch) {
+        const tempValue = tempMatch[1];
+        if (typeof tempValue === 'string' && tempValue.includes('F')) {
+            // Convert Fahrenheit to Celsius
+            const fahrenheit = parseFloat(tempValue.replace('F', ''));
+            vitals.Temp = ((fahrenheit - 32) * 5/9);
+        } else {
+            vitals.Temp = parseFloat(tempValue);
+        }
+    }
+    
+    // Extract oxygen saturation
+    const o2Match = text.match(/"oxygenSaturation":\s*"([^"]*)"/) || 
+                   text.match(/"oxygenSaturation":\s*(\d+)/) ||
+                   text.match(/"O2Sat":\s*(\d+)/);
+    if (o2Match) {
+        const o2Value = o2Match[1];
+        if (typeof o2Value === 'string' && o2Value.includes('%')) {
+            vitals.O2Sat = parseInt(o2Value);
+        } else {
+            vitals.O2Sat = parseInt(o2Value);
+        }
+    }
+    
+    return vitals;
+}
+
+// Transform API response data to our expected format
+function transformPatientData(apiData) {
+    const transformedData = {
+        demographics: "",
+        chiefComplaint: "",
+        history: "",
+        vitalSigns: {
+            HR: 80,
+            BPSystolic: 120,
+            BPDiastolic: 80,
+            RR: 16,
+            Temp: 37.0,
+            O2Sat: 98
+        },
+        diagnosis: "Unknown"
+    };
+    
+    // Handle patientDemographics field
+    if (apiData.patientDemographics) {
+        const pd = apiData.patientDemographics;
+        let demoText = "";
+        
+        if (pd.age && pd.gender) {
+            demoText = `${pd.age}-year-old ${pd.gender}`;
+            
+            if (pd.ethnicity) {
+                demoText += ` (${pd.ethnicity})`;
+            }
+            
+            // Add medical history if available
+            if (pd.pastMedicalHistory) {
+                if (Array.isArray(pd.pastMedicalHistory)) {
+                    demoText += ` with history of ${pd.pastMedicalHistory.join(', ')}`;
+                } else if (typeof pd.pastMedicalHistory === 'string') {
+                    demoText += ` with history of ${pd.pastMedicalHistory}`;
+                }
+            }
+            
+            // Add medications if available
+            if (pd.medications && Array.isArray(pd.medications) && pd.medications.length > 0) {
+                demoText += `. Current medications: ${pd.medications.join(', ')}`;
+            }
+        } else if (pd.age) {
+            demoText = `${pd.age}-year-old patient`;
+        } else if (apiData.demographics) {
+            demoText = apiData.demographics;
+        } else {
+            demoText = "Adult patient";
+        }
+        
+        transformedData.demographics = demoText;
+    } else if (apiData.demographics) {
+        transformedData.demographics = apiData.demographics;
+    }
+    
+    // Handle chief complaint
+    transformedData.chiefComplaint = apiData.chiefComplaint || "Multiple symptoms";
+    
+    // Handle history
+    if (apiData.historyOfPresentIllness && apiData.historyOfPresentIllness.narrative) {
+        transformedData.history = apiData.historyOfPresentIllness.narrative;
+    } else if (apiData.history) {
+        transformedData.history = apiData.history;
+    }
+    
+    // Handle vital signs
+    if (apiData.vitalSigns) {
+        const vs = apiData.vitalSigns;
+        
+        // Handle different field naming patterns
+        if (vs.heartRate !== undefined) transformedData.vitalSigns.HR = vs.heartRate;
+        else if (vs.HR !== undefined) transformedData.vitalSigns.HR = vs.HR;
+        
+        // Handle blood pressure
+        if (vs.bloodPressure && typeof vs.bloodPressure === 'string') {
+            const parts = vs.bloodPressure.split('/');
+            if (parts.length === 2) {
+                transformedData.vitalSigns.BPSystolic = parseInt(parts[0]);
+                transformedData.vitalSigns.BPDiastolic = parseInt(parts[1]);
+            }
+        } else {
+            if (vs.BPSystolic !== undefined) transformedData.vitalSigns.BPSystolic = vs.BPSystolic;
+            if (vs.BPDiastolic !== undefined) transformedData.vitalSigns.BPDiastolic = vs.BPDiastolic;
+        }
+        
+        // Handle respiratory rate
+        if (vs.respiratoryRate !== undefined) transformedData.vitalSigns.RR = vs.respiratoryRate;
+        else if (vs.RR !== undefined) transformedData.vitalSigns.RR = vs.RR;
+        
+        // Handle temperature
+        if (vs.temperature) {
+            if (typeof vs.temperature === 'string' && vs.temperature.includes('F')) {
+                const fahrenheit = parseFloat(vs.temperature.replace('F', ''));
+                transformedData.vitalSigns.Temp = ((fahrenheit - 32) * 5/9);
+            } else if (typeof vs.temperature === 'string' && vs.temperature.includes('C')) {
+                transformedData.vitalSigns.Temp = parseFloat(vs.temperature.replace('C', ''));
+            } else {
+                transformedData.vitalSigns.Temp = parseFloat(vs.temperature);
+            }
+        } else if (vs.Temp !== undefined) {
+            transformedData.vitalSigns.Temp = vs.Temp;
+        }
+        
+        // Handle oxygen saturation
+        if (vs.oxygenSaturation) {
+            if (typeof vs.oxygenSaturation === 'string') {
+                const percentMatch = vs.oxygenSaturation.match(/(\d+)%/);
+                if (percentMatch) {
+                    transformedData.vitalSigns.O2Sat = parseInt(percentMatch[1]);
+                }
+            } else {
+                transformedData.vitalSigns.O2Sat = vs.oxygenSaturation;
+            }
+        } else if (vs.O2Sat !== undefined) {
+            transformedData.vitalSigns.O2Sat = vs.O2Sat;
+        }
+    }
+    
+    // Handle diagnosis
+    if (apiData.underlyingDiagnosis && apiData.underlyingDiagnosis.correctDiagnosis) {
+        transformedData.diagnosis = apiData.underlyingDiagnosis.correctDiagnosis;
+    } else if (apiData.diagnosis) {
+        transformedData.diagnosis = apiData.diagnosis;
+    }
+    
+    return transformedData;
 }
 
 // Set case type
