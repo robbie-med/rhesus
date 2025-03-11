@@ -128,7 +128,7 @@ export function updateDisplays() {
 }
 
 // Increment cost when an action is performed
-export function incrementCost(amount = 100) {
+export function incrementCost(amount = 0.1) {
     cost += amount;
     updateDisplays();
 }
