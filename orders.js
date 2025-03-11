@@ -61,7 +61,7 @@ async function evaluateOrder(orderDetails, result) {
             const evaluation = JSON.parse(jsonMatch[0].replace(/```json\n|```\n|```/g, ''));
             
             // Update the score
-            score += evaluation.scoreImpact;
+            setScore(score + evaluation.scoreImpact);
             updateDisplays();
             
             // If the order was harmful, have the attending comment
