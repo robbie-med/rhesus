@@ -3,12 +3,17 @@ import {
   addMessage, addResult, setScore, incrementCost, formatGameTime, 
   gameActive, actionInProgress, caseHistory, vitalSigns, patientData, 
   score, updateDisplays, inGameTime, setActionInProgress,
-  orderEntryArea, subActionsArea
+  orderEntryArea, subActionsArea, patientDeceased, patientCured,
+  resultsArea
 } from './utils.js';
 import { callAPI } from './api.js';
+import { handlePatientDeath, handlePatientCured } from './game_logic.js';
 
 // Evaluate an order for scoring
 async function evaluateOrder(orderDetails, result) {
+    // Don't evaluate if patient is already in a terminal state
+    if (patientDeceased || patientCured) return;
+
     // Create a prompt for evaluating the order
     const evaluationPrompt = `
     Evaluate the medical appropriateness of the following order in the context of this patient case:
@@ -64,8 +69,11 @@ async function evaluateOrder(orderDetails, result) {
             setScore(score + evaluation.scoreImpact);
             updateDisplays();
             
+            // Check for patient death or recovery based on evaluation and result text
+            checkForTerminalOutcomes(evaluation, result, orderDetails);
+            
             // If the order was harmful, have the attending comment
-            if (evaluation.evaluation === 'harmful' && Math.random() < 0.8) {
+            if (evaluation.evaluation === 'harmful' && Math.random() < 0.8 && !patientDeceased) {
                 setTimeout(() => {
                     addMessage('attending', `I'm concerned about your decision to ${getOrderSummary(orderDetails)}. ${evaluation.feedback}`);
                 }, 3000);
@@ -94,8 +102,79 @@ async function evaluateOrder(orderDetails, result) {
     return null;
 }
 
+// Check for patient death or recovery based on evaluation and result text
+function checkForTerminalOutcomes(evaluation, resultText, orderDetails) {
+    // Don't check if already in a terminal state
+    if (patientDeceased || patientCured) return;
+    
+    const resultLower = resultText.toLowerCase();
+    
+    // Check for death indicators
+    if ((evaluation.evaluation === 'harmful' && evaluation.scoreImpact <= -8) || 
+        resultLower.includes("cardiac arrest") || 
+        resultLower.includes("death") || 
+        resultLower.includes("died") || 
+        resultLower.includes("fatal") ||
+        resultLower.includes("expired") ||
+        resultLower.includes("expire") ||
+        resultLower.includes("deceased")) {
+        
+        // Extract the cause of death if possible
+        let causeOfDeath = "";
+        
+        if (orderDetails.type === 'medication') {
+            causeOfDeath = `Medication error: ${orderDetails.medication} ${orderDetails.dosage}`;
+        } else {
+            causeOfDeath = "Critical clinical error";
+        }
+        
+        // If there's a more specific cause in the result, use that
+        if (resultLower.includes("due to")) {
+            const parts = resultLower.split("due to");
+            if (parts.length > 1) {
+                causeOfDeath = parts[1].split('.')[0].trim();
+                causeOfDeath = causeOfDeath.charAt(0).toUpperCase() + causeOfDeath.slice(1);
+            }
+        }
+        
+        handlePatientDeath(causeOfDeath);
+    }
+    
+    // Check for recovery indicators
+    else if (evaluation.evaluation === 'appropriate' && 
+             score >= 8 && 
+             (resultLower.includes("improved") || 
+              resultLower.includes("stabilized") || 
+              resultLower.includes("stable") || 
+              resultLower.includes("recovery") || 
+              resultLower.includes("resolved"))) {
+        
+        // If this might be a diagnostic intervention, include diagnosis
+        let recoveryReason = "Treatment has successfully stabilized the patient";
+        
+        if (orderDetails.type === 'imaging' || orderDetails.type === 'lab' || orderDetails.type === 'consult') {
+            recoveryReason = `Diagnosis confirmed as ${patientData.diagnosis} and appropriate treatment administered`;
+        } else if (orderDetails.type === 'medication') {
+            recoveryReason = `The administration of ${orderDetails.medication} has effectively treated the patient's condition`;
+        }
+        
+        handlePatientCured(recoveryReason);
+    }
+}
+
 // Generate a result for an order
 async function generateOrderResult(orderDetails) {
+    // If patient is already in a terminal state, don't generate new results
+    if (patientDeceased) {
+        addResult("Cannot process new orders. The patient is in cardiac arrest.", 'error');
+        return;
+    }
+
+    if (patientCured) {
+        addResult("Order placed, but patient is already stabilized and ready for discharge.", 'result');
+        return;
+    }
+    
     // Create a prompt for generating a result based on the order
     const resultPrompt = `
     Based on the following patient case and timeline of events, generate a realistic result for the ordered ${orderDetails.type}.
@@ -199,6 +278,18 @@ async function submitOrder(action, subActionId, subActionName) {
         console.log("submitOrder returning early because gameActive is false or actionInProgress is true");
         return;
     }
+    
+    // Check if patient is in a terminal state
+    if (patientDeceased) {
+        addResult("Cannot place orders. The patient is in cardiac arrest.", 'error');
+        return;
+    }
+    
+    if (patientCured) {
+        addResult("The patient is already stable and ready for discharge. No new orders needed.", 'result');
+        return;
+    }
+    
     setActionInProgress(true);
     
     // Get the order details based on the form
@@ -323,5 +414,6 @@ export {
     generateOrderResult, 
     getOrderSummary, 
     getLableDisplayName, 
-    submitOrder 
+    submitOrder,
+    checkForTerminalOutcomes
 };
