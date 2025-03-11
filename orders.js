@@ -193,7 +193,7 @@ function getLableDisplayName(labId) {
 async function submitOrder(action, subActionId, subActionName) {
     if (!gameActive || actionInProgress) return;
     
-    actionInProgress = true;
+    setactionInProgress = true;
     
     // Get the order details based on the form
     let orderDetails = {};
@@ -207,7 +207,7 @@ async function submitOrder(action, subActionId, subActionName) {
             
             if (!medication || !dosage) {
                 alert('Please select a medication and specify a dosage.');
-                actionInProgress = false;
+                setactionInProgress = false;
                 return;
             }
             
@@ -247,7 +247,7 @@ async function submitOrder(action, subActionId, subActionName) {
             
             if (!imagingDetails) {
                 alert('Please specify the body region and clinical question.');
-                actionInProgress = false;
+                setactionInProgress = false;
                 return;
             }
             
@@ -308,7 +308,7 @@ async function submitOrder(action, subActionId, subActionName) {
     // Generate a result for the order
     await generateOrderResult(orderDetails);
     
-    actionInProgress = false;
+    setactionInProgress = false;
 }
 
 // Export functions for use in other modules
