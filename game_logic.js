@@ -3,6 +3,7 @@ import {
     gameActive, inGameTime, cost, score, caseHistory, patientData, vitalSigns,
     actionInProgress, selectedCaseType, gameIntervalId, updateDisplays,
     calculateMAP, formatGameTime, addMessage, addResult, resetGame,
+    setSelectedCaseType,
     messageArea, startGameButton, caseButtons, chatInput, sendMessageButton,
     actionButtons, preGameMessage, patientDataSection, patientDemographics,
     chiefComplaint, historySection, vitalsDisplay
@@ -353,7 +354,8 @@ function displayVitalSigns() {
 
 // Set case type
 export function setCaseType(type) {
-    selectedCaseType = type;
+    // Use the function to modify the selectedCaseType instead of directly changing it
+    setSelectedCaseType(type);
     
     // Update UI to show selected case
     document.querySelectorAll('.case-button').forEach(button => {
