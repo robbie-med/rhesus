@@ -1,3 +1,5 @@
+console.log("Game logic module loaded");
+
 // Import shared utilities and variables
 import { 
     gameActive, inGameTime, cost, score, caseHistory, patientData, vitalSigns,
@@ -352,10 +354,10 @@ function displayVitalSigns() {
     `;
 }
 
-// Set case type
 export function setCaseType(type) {
-    // Use the function to modify the selectedCaseType instead of directly changing it
-    setSelectedCaseType(type);
+  console.log("setCaseType called with:", type);
+  setSelectedCaseType(type);
+  console.log("After setSelectedCaseType call");
     
     // Update UI to show selected case
     document.querySelectorAll('.case-button').forEach(button => {
