@@ -1,6 +1,6 @@
 // Import shared functions and variables
 import { addMessage, addResult, incrementCost, formatGameTime, 
-         gameActive, caseHistory, vitalSigns, patientData, 
+         gameActive, actionInProgress, caseHistory, vitalSigns, patientData, 
          score, updateDisplays, inGameTime, setActionInProgress } from './utils.js';
 import { callAPI } from './api.js';
 
