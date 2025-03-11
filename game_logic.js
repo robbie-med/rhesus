@@ -87,7 +87,24 @@ async function startGame() {
 // Generate a new patient case based on the selected type
 async function generatePatientCase() {
     const prompt = `You are an advanced medical case simulation engine for an internal medicine resident training game. Your task is to generate a realistic, medically accurate, and engaging patient case of a ${selectedCaseType} where the player interacts with the patient to make diagnostic and management decisions.
-	Case Requirements:
+	
+ 	IMPORTANT - RETURN DATA IN THIS EXACT FORMAT:
+	{
+	  "demographics": "65-year-old male with history of hypertension, diabetes. Medications: metformin, lisinopril", 
+	  "chiefComplaint": "I've been feeling really short of breath for the past two days",
+	  "history": "The patient reports increasing shortness of breath over the past two days, worse with exertion...",
+	  "vitalSigns": {
+	    "HR": 75,
+	    "BPSystolic": 120,
+	    "BPDiastolic": 80,
+	    "RR": 18,
+	    "Temp": 37.0,
+	    "O2Sat": 95
+	  },
+	  "diagnosis": "Community-acquired pneumonia"
+	}
+ 
+ 	Case Requirements:
 		- The case should be appropriately challenging for an internal medicine resident.
 		- It should simulate an actual patient encounter, allowing for history-taking, physical exam findings, and diagnostic decision-making.
 		- The final diagnosis should be hidden from the player, requiring them to work through the case.
@@ -143,7 +160,7 @@ async function generatePatientCase() {
 			 - Diagnostic reasoning and test ordering.
 			 - Correctness of treatment decisions.
 
-Return only valid JSON with simple structure, without any markdown formatting or additional text. Keep key names short and avoid deep nesting.`;
+	Return valid JSON without any markdown formatting or additional text, using exactly the field names specified above.`;
     
     try {
         const response = await callAPI([{ role: "user", content: prompt }]);
