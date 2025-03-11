@@ -64,7 +64,7 @@ async function startGame() {
         addMessage('attending', "I'd like you to take the lead on this case. What's your initial assessment and plan?");
         
         // Update vital signs immediately
-        updateVitalSigns();
+        refreshVitalSigns();
         
         setActionInProgress(false);
     } catch (error) {
