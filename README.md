@@ -1,6 +1,6 @@
 # Rhesus ⚕️🙈
 
-A text-based healthcare simulation game designed for medical residents to practice clinical reasoning skills in a realistic, interactive environment.
+A text-based healthcare simulation game designed for medical students and interns to practice clinical reasoning skills in a realistic, interactive environment.
 
 ## Features
 
