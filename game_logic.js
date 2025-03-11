@@ -194,7 +194,7 @@ function updateGameTime() {
     
     // Every 10 seconds, update vitals
     if (inGameTime % 10 === 0) {
-        updateVitalSigns();
+        refreshVitalSigns();
     }
 }
 
