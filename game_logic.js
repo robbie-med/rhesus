@@ -5,10 +5,10 @@ import {
     gameActive, inGameTime, cost, score, caseHistory, patientData, vitalSigns,
     actionInProgress, selectedCaseType, gameIntervalId, updateDisplays,
     calculateMAP, formatGameTime, addMessage, addResult, resetGame,
-    // Import all setter functions
+    // Import all setter functions (rename updateVitalSigns to avoid conflict)
     setGameActive, setInGameTime, incrementInGameTime, setCost, setScore, 
     setCaseHistory, addToCaseHistory, setPatientData, updatePatientData, 
-    setVitalSigns, updateVitalSigns, updateVitalSign, setActionInProgress, 
+    setVitalSigns, updateVitalSigns as setVitalSignsData, updateVitalSign, setActionInProgress, 
     setSelectedCaseType, setGameIntervalId,
     // DOM elements
     messageArea, startGameButton, caseButtons, chatInput, sendMessageButton,
@@ -125,8 +125,8 @@ async function generatePatientCase() {
         // Update the global patient data object using setters
         updatePatientData(newPatientData);
         
-        // Update the global vital signs object
-        updateVitalSigns(patientData.vitalSigns);
+        // Update the global vital signs object - using renamed function
+        setVitalSignsData(patientData.vitalSigns);
         
         // Calculate MAP (Mean Arterial Pressure)
         updateVitalSign('MAP', calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic));
@@ -165,7 +165,7 @@ async function generatePatientCase() {
         
         // Update using setter functions
         updatePatientData(fallbackCase);
-        updateVitalSigns(fallbackCase.vitalSigns);
+        setVitalSignsData(fallbackCase.vitalSigns);
         updateVitalSign('MAP', calculateMAP(vitalSigns.BPSystolic, vitalSigns.BPDiastolic));
         
         // Update UI with patient information
@@ -246,13 +246,13 @@ async function updateVitalSigns() {
             const cleanedContent = jsonMatch[0].replace(/```json\n|```\n|```/g, '');
             console.log("Cleaned vitals content:", cleanedContent);
             const updatedVitals = JSON.parse(cleanedContent);
-            // Update using setter
-            updateVitalSigns(updatedVitals);
+            // Update using renamed setter
+            setVitalSignsData(updatedVitals);
         } else {
             // Fallback: try to parse the entire content
             const updatedVitals = JSON.parse(content);
-            // Update using setter
-            updateVitalSigns(updatedVitals);
+            // Update using renamed setter
+            setVitalSignsData(updatedVitals);
         }
         
         // Calculate MAP
