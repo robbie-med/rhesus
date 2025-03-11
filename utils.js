@@ -10,6 +10,11 @@ export let actionInProgress = false;
 export let selectedCaseType = null;
 export let gameIntervalId = null;
 
+// Function to set the case type (to avoid direct modification of the imported variable)
+export function setSelectedCaseType(type) {
+  selectedCaseType = type;
+}
+
 // DOM element references
 export const chatInput = document.getElementById('chat-input');
 export const sendMessageButton = document.getElementById('send-message');
