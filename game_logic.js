@@ -54,6 +54,7 @@ async function startGame() {
         chatInput.disabled = false;
         sendMessageButton.disabled = false;
         actionButtons.parentElement.classList.remove('hidden');
+        actionButtons.classList.remove('hidden');
         preGameMessage.classList.add('hidden');
         patientDataSection.classList.remove('hidden');
         
