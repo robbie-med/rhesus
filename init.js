@@ -11,9 +11,9 @@ let caseHistory = [];
 let actionInProgress = false;
 
 // API configuration
-const apiKey = "sk-e69yagfy1LbeuHU7wUpAIg";
+const apiKey = "sk-gOye37aXIQAo1DnkrcJQNg";
 const apiUrl = "https://api.ppq.ai/chat/completions";
-const apiModel = "claude-3.5-sonnet";
+const apiModel = "gpt-4o";
 
 // DOM Elements
 const startGameButton = document.getElementById('startGame');
