@@ -3,7 +3,7 @@ console.log("API module loaded");
 
 // API credentials (should be stored securely in production)
 const API_KEY = "sk-gOye37aXIQAo1DnkrcJQNg";
-const API_URL = "https://api.ppq.ai";
+const API_URL = "https://api.ppq.ai/chat/completions";
 
 // Call the AI API with real credentials
 export async function callAPI(messages, maxTokens = 1000, temperature = 0.7) {
