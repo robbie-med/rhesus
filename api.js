@@ -1,23 +1,22 @@
 // Real API integration
 console.log("API module loaded");
 
-// API credentials (should be stored securely in production)
-const API_KEY = "sk-gOye37aXIQAo1DnkrcJQNg";
-const API_URL = "https://api.ppq.ai/chat/completions";
+// Cloudflare Worker proxy URL - keeps API key secure on server side
+// Update this URL after deploying your Cloudflare Worker (see worker.js)
+const WORKER_URL = "https://your-worker.your-subdomain.workers.dev";
 
-// Call the AI API with real credentials
+// Call the AI API through the secure proxy
 export async function callAPI(messages, maxTokens = 1000, temperature = 0.7) {
-    console.log("Calling real API with:", messages[0].content.substring(0, 50) + "...");
-    
+    console.log("Calling API with:", messages[0].content.substring(0, 50) + "...");
+
     try {
-        const response = await fetch(API_URL, {
+        const response = await fetch(WORKER_URL, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${API_KEY}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: "gpt-4o", // Using the model you specified
+                model: "gpt-4o",
                 messages: messages,
                 max_tokens: maxTokens,
                 temperature: temperature
@@ -38,9 +37,9 @@ export async function callAPI(messages, maxTokens = 1000, temperature = 0.7) {
         
         // Enhanced error handling
         if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-            console.error('Network error - check your internet connection or API endpoint');
-        } else if (error.message.includes('401')) {
-            console.error('Authentication error - check your API key');
+            console.error('Network error - check your internet connection or worker URL');
+        } else if (error.message.includes('401') || error.message.includes('500')) {
+            console.error('Server error - check your Cloudflare Worker configuration');
         } else if (error.message.includes('429')) {
             console.error('Rate limit exceeded - you\'re sending too many requests');
         }
