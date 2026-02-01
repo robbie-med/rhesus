@@ -3,7 +3,7 @@ console.log("API module loaded");
 
 // Cloudflare Worker proxy URL - keeps API key secure on server side
 // Update this URL after deploying your Cloudflare Worker (see worker.js)
-const WORKER_URL = "https://your-worker.your-subdomain.workers.dev";
+const WORKER_URL = "https://rhesus.w4yq4gvh58.workers.dev/";
 
 // Call the AI API through the secure proxy
 export async function callAPI(messages, maxTokens = 1000, temperature = 0.7) {
@@ -16,7 +16,7 @@ export async function callAPI(messages, maxTokens = 1000, temperature = 0.7) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: "gpt-4o",
+                model: "gpt-4o-mini",
                 messages: messages,
                 max_tokens: maxTokens,
                 temperature: temperature

@@ -12,12 +12,12 @@
  *    - Click "Encrypt" to make it a secret
  * 4. (Optional) Add API_URL if you want to change the endpoint:
  *    - Name: API_URL
- *    - Value: https://api.ppq.ai/chat/completions
+ *    - Value: https://api.openai.com/v1/chat/completions (default)
  * 5. Deploy and note your worker URL (e.g., https://your-worker.your-subdomain.workers.dev)
  * 6. Update WORKER_URL in api.js and init.js to match your worker URL
  */
 
-const DEFAULT_API_URL = "https://api.ppq.ai/chat/completions";
+const DEFAULT_API_URL = "https://api.openai.com/v1/chat/completions";
 
 // Allowed origins for CORS (update with your actual domain)
 const ALLOWED_ORIGINS = [
