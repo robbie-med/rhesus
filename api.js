@@ -16,7 +16,7 @@ export async function callAPI(messages, maxTokens = 1000, temperature = 0.7) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: "gpt-4o",
+                model: "gpt-4o-mini",
                 messages: messages,
                 max_tokens: maxTokens,
                 temperature: temperature
