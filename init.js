@@ -10,9 +10,9 @@ let vitalSigns = null;
 let caseHistory = [];
 let actionInProgress = false;
 
-// API configuration
-const apiKey = "sk-gOye37aXIQAo1DnkrcJQNg";
-const apiUrl = "https://api.ppq.ai/chat/completions";
+// Cloudflare Worker proxy URL - keeps API key secure on server side
+// Update this URL after deploying your Cloudflare Worker (see worker.js)
+const workerUrl = "https://your-worker.your-subdomain.workers.dev";
 const apiModel = "gpt-4o";
 
 // DOM Elements
@@ -130,14 +130,13 @@ function resetGame() {
     historySection.textContent = '';
 }
 
-// Call the API
+// Call the API through the secure Cloudflare Worker proxy
 async function callAPI(messages) {
     try {
-        const response = await fetch(apiUrl, {
+        const response = await fetch(workerUrl, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 model: apiModel,
