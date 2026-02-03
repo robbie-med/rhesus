@@ -90,7 +90,8 @@ async function generateResponse(recipient, message) {
     Keep your response concise (1-3 sentences) unless detailed medical explanation is necessary.`;
     
     try {
-        const response = await callAPI([{ role: "user", content: context }]);
+        // Use 'lite' tier for chat - conversational roleplay doesn't need deep reasoning
+        const response = await callAPI([{ role: "user", content: context }], 500, 0.7, 'lite');
         const content = response.choices[0].message.content;
         
         // Add the response to the chat
