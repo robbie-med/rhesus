@@ -178,13 +178,13 @@ async function generateOrderResult(orderDetails) {
     // Create a prompt for generating a result based on the order
     const resultPrompt = `
     Based on the following patient case and timeline of events, generate a realistic result for the ordered ${orderDetails.type}.
-    
+
     Patient information:
     - Diagnosis (hidden from player): ${patientData.diagnosis}
     - Demographics: ${patientData.demographics}
     - Chief complaint: ${patientData.chiefComplaint}
     - History: ${patientData.history}
-    
+
     Current vitals:
     - HR: ${vitalSigns.HR} bpm
     - BP: ${vitalSigns.BPSystolic}/${vitalSigns.BPDiastolic} mmHg
@@ -192,23 +192,35 @@ async function generateOrderResult(orderDetails) {
     - RR: ${vitalSigns.RR} breaths/min
     - Temp: ${vitalSigns.Temp}°C
     - O2Sat: ${vitalSigns.O2Sat}%
-    
+
     Recent events:
     ${caseHistory.slice(-8).map(event => `- ${formatGameTime(event.time)}: ${event.event}`).join('\n')}
-    
+
     Order details:
     ${JSON.stringify(orderDetails, null, 2)}
-    
-    Please provide a realistic, medically accurate result for this ${orderDetails.type} order. The response should be appropriate for the patient's underlying condition (${patientData.diagnosis}) but should not explicitly state the diagnosis.
-    
-    If this is a medication order, describe the patient's response to the medication. It's okay if the patient dies. Be sure to be consistent with the patient's current condition and vitals.  
-    If this is a lab test, provide realistic lab values.
-    If this is an imaging study, provide findings consistent with the underlying condition.
-    If this is a procedure, describe the procedure and any findings.
-    If this is a consultation, provide the consultant's assessment and recommendations.
-    
-    Keep the response focused and concise (about 3-5 sentences), as if it were appearing in an electronic medical record.`;
-    
+
+    CRITICAL: Provide physiologically accurate results that reflect the developing case and underlying condition (${patientData.diagnosis}). Do NOT explicitly state the diagnosis. Do NOT provide any interpretation, assessment, or clinical impression—ONLY raw data and objective findings.
+
+    Format requirements by order type:
+
+    LAB TEST: Return values in ASCII skeleton/fishbone format where applicable. Example for BMP:
+    Na ${'>'}|< Cl
+    K  >|< CO2
+       BUN/Cr
+       Glucose
+    For CBC: WBC / Hgb / Hct / Plt with differential if ordered.
+    Just numbers with units. NO interpretation.
+
+    IMAGING: Findings ONLY. Example: "PA and lateral chest: Bilateral lower lobe opacities. Small right pleural effusion. No pneumothorax. Cardiac silhouette normal." NO impression or interpretation.
+
+    PROCEDURE: Describe what was done and objective findings ONLY. Example: "Paracentesis: 1.2L straw-colored fluid removed. Sent for cell count, culture, albumin, protein." NO interpretation.
+
+    PHYSICAL EXAM: Objective findings ONLY. Example: "Abdomen: Distended, positive fluid wave, no tenderness, no guarding. Bowel sounds hypoactive." NO interpretation.
+
+    MEDICATION: Brief objective patient response. Example: "BP improved to 128/78 after second dose. HR 88." It's okay if the patient deteriorates or dies.
+
+    CONSULT: Consultant's objective findings and specific recommendations ONLY. NO diagnostic impressions.`;
+
     try {
         const response = await callAPI([{ role: "user", content: resultPrompt }]);
         const content = response.choices[0].message.content;
