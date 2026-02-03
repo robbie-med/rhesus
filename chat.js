@@ -1,7 +1,7 @@
 // Import shared functions and variables
-import { 
-    addMessage, incrementCost, formatGameTime, gameActive, caseHistory, 
-    vitalSigns, patientData, chatInput, patientDeceased, patientCured 
+import {
+    addMessage, formatGameTime, gameActive, caseHistory,
+    vitalSigns, patientData, chatInput, patientDeceased, patientCured
 } from './utils.js';
 import { callAPI } from './api.js';
 
@@ -29,11 +29,8 @@ async function sendMessage() {
     
     // Add the player's message to the chat
     addMessage('player', message);
-    
-    // Increment cost
-    incrementCost();
-    
-    // Generate a response from the recipient
+
+    // Generate a response from the recipient (cost tracked via token usage)
     await generateResponse(recipient, content);
 }
 
@@ -90,7 +87,8 @@ async function generateResponse(recipient, message) {
     Keep your response concise (1-3 sentences) unless detailed medical explanation is necessary.`;
     
     try {
-        const response = await callAPI([{ role: "user", content: context }]);
+        // Use 'lite' tier for chat - conversational roleplay doesn't need deep reasoning
+        const response = await callAPI([{ role: "user", content: context }], 500, 0.7, 'lite');
         const content = response.choices[0].message.content;
         
         // Add the response to the chat
