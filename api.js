@@ -1,6 +1,8 @@
 // Real API integration
 console.log("API module loaded");
 
+import { addTokenUsage } from './utils.js';
+
 // Cloudflare Worker proxy URL - keeps API key secure on server side
 const WORKER_URL = "https://rhesus.w4yq4gvh58.workers.dev/";
 
@@ -40,6 +42,12 @@ export async function callAPI(messages, maxTokens = 1000, temperature = 0.7, tie
         
         const data = await response.json();
         console.log("API response received:", data);
+
+        // Track token usage and costs
+        if (data.usage) {
+            addTokenUsage(data.usage, tier);
+        }
+
         return data;
     } catch (error) {
         console.error('API call failed:', error);

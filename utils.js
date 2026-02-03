@@ -14,6 +14,15 @@ export let gameIntervalId = null;
 export let patientDeceased = false;
 export let patientCured = false;
 
+// Token tracking
+export let totalTokens = { input: 0, output: 0 };
+
+// Pricing per million tokens (as of 2026)
+const PRICING = {
+    standard: { input: 1.25, output: 10.00 },   // GPT-5
+    lite: { input: 0.25, output: 2.00 }          // GPT-5-mini
+};
+
 // Setter functions for all mutable state variables
 export function setGameActive(value) {
   console.log("Setting gameActive to:", value);
@@ -30,6 +39,29 @@ export function incrementInGameTime(amount = 1) {
 
 export function setCost(value) {
   cost = value;
+}
+
+export function resetTokens() {
+  totalTokens = { input: 0, output: 0 };
+}
+
+// Add tokens from an API response and calculate cost
+export function addTokenUsage(usage, tier = 'standard') {
+  if (!usage) return;
+
+  const inputTokens = usage.prompt_tokens || 0;
+  const outputTokens = usage.completion_tokens || 0;
+
+  totalTokens.input += inputTokens;
+  totalTokens.output += outputTokens;
+
+  // Calculate cost for this call
+  const pricing = PRICING[tier] || PRICING.standard;
+  const inputCost = (inputTokens / 1000000) * pricing.input;
+  const outputCost = (outputTokens / 1000000) * pricing.output;
+
+  cost += inputCost + outputCost;
+  updateDisplays();
 }
 
 export function setScore(value) {
@@ -119,10 +151,12 @@ export function formatGameTime(seconds) {
 export function updateDisplays() {
     // Update time display
     document.getElementById('time-display').textContent = formatGameTime(inGameTime);
-    
-    // Update cost display
-    document.getElementById('cost-display').textContent = `$${cost}`;
-    
+
+    // Update cost display with tokens
+    const totalTok = totalTokens.input + totalTokens.output;
+    const costStr = cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2);
+    document.getElementById('cost-display').textContent = `${totalTok.toLocaleString()} tok · $${costStr}`;
+
     // Update score display
     document.getElementById('score-display').textContent = score;
 }
@@ -189,7 +223,9 @@ export function resetGame() {
     setGameActive(false);
     setPatientDeceased(false);
     setPatientCured(false);
-    
+    resetTokens();
+    cost = 0;
+
     if (gameIntervalId) {
         clearInterval(gameIntervalId);
         setGameIntervalId(null);

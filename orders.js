@@ -1,7 +1,7 @@
 // Import shared functions and variables
-import { 
-  addMessage, addResult, setScore, incrementCost, formatGameTime, 
-  gameActive, actionInProgress, caseHistory, vitalSigns, patientData, 
+import {
+  addMessage, addResult, setScore, formatGameTime,
+  gameActive, actionInProgress, caseHistory, vitalSigns, patientData,
   score, updateDisplays, inGameTime, setActionInProgress,
   orderEntryArea, subActionsArea, patientDeceased, patientCured,
   resultsArea
@@ -398,11 +398,8 @@ async function submitOrder(action, subActionId, subActionName) {
     // Hide the order form
     orderEntryArea.classList.add('hidden');
     subActionsArea.classList.add('hidden');
-    
-    // Increment cost
-    incrementCost();
-    
-    // Generate a result for the order
+
+    // Generate a result for the order (cost tracked via token usage)
     await generateOrderResult(orderDetails);
     
     setActionInProgress(false);
