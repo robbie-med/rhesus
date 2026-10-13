@@ -30,7 +30,10 @@ export async function callAPI(messages, maxTokens = 1000, temperature = 0.7, tie
                 model: model,
                 messages: messages,
                 max_tokens: maxTokens,
-                temperature: temperature
+                temperature: temperature,
+                // DeepSeek V4 reasons by default and counts it against max_tokens,
+                // which leaves no room for the answer at these limits
+                thinking: { type: 'disabled' }
             })
         });
         
