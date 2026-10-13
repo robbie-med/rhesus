@@ -1,245 +1,185 @@
-console.log("Utils module loaded");
+// Shared game state, clock, rendering and cost tracking
 
-// Shared game state variables
-export let gameActive = false;
-export let inGameTime = 0;
-export let cost = 0;
-export let score = 0;
-export let caseHistory = [];
-export let patientData = {};
-export let vitalSigns = {};
-export let actionInProgress = false;
-export let selectedCaseType = null;
-export let gameIntervalId = null;
-export let patientDeceased = false;
-export let patientCured = false;
+export const VERSION = '2.0.0';
 
-// Token tracking
-export let totalTokens = { input: 0, output: 0 };
+// 10 real seconds = 1 in-game minute
+export const REAL_SECONDS_PER_GAME_MINUTE = 10;
+// Cases end automatically after this much in-game time
+export const MAX_GAME_MINUTES = 240;
 
-// Pricing per million tokens (as of 2026)
+// USD per 1M tokens (approximate)
 const PRICING = {
-    standard: { input: 0.46, output: 0.92 },    // DeepSeek V4 Pro (approx.)
-    lite: { input: 0.09, output: 0.19 }          // DeepSeek V4.1 Flash (approx.)
+    'deepseek-v4-pro': { input: 0.46, output: 0.92 },
+    'deepseek-flash': { input: 0.09, output: 0.19 }
 };
 
-// Setter functions for all mutable state variables
-export function setGameActive(value) {
-  console.log("Setting gameActive to:", value);
-  gameActive = value;
+// Single mutable state object shared by all modules
+export const state = {
+    active: false,          // a case is loaded and running
+    status: 'idle',         // idle | loading | active | deceased | recovered | ended
+    caseType: null,
+    elapsed: 0,             // real seconds since case start
+    caseFile: null,         // full generated case, including hidden fields
+    vitals: null,           // current vitals
+    vitalsHistory: [],      // [{ t, vitals, status }]
+    timeline: [],           // [{ t, kind: 'order'|'result'|'event', text }]
+    chats: { attending: [], nurse: [] },  // [{ role: 'user'|'assistant', content }]
+    score: 0,
+    scoreLog: [],           // [{ t, order, rating, points, feedback }]
+    creditedInterventions: [],
+    recoveredStreak: 0,
+    vitalsInFlight: false,
+    orderInFlight: false,
+    lastNurseAlertAt: -Infinity,
+    clockId: null,
+    tokens: { input: 0, output: 0 },
+    cost: 0
+};
+
+export function resetState() {
+    if (state.clockId) clearInterval(state.clockId);
+    Object.assign(state, {
+        active: false, status: 'idle', elapsed: 0, caseFile: null, vitals: null,
+        vitalsHistory: [], timeline: [], chats: { attending: [], nurse: [] },
+        score: 0, scoreLog: [], creditedInterventions: [], recoveredStreak: 0,
+        vitalsInFlight: false, orderInFlight: false, lastNurseAlertAt: -Infinity,
+        clockId: null, tokens: { input: 0, output: 0 }, cost: 0
+    });
 }
 
-export function setInGameTime(value) {
-  inGameTime = value;
+// In-game minutes since case start
+export function gameMinutes() {
+    return Math.floor(state.elapsed / REAL_SECONDS_PER_GAME_MINUTE);
 }
 
-export function incrementInGameTime(amount = 1) {
-  inGameTime += amount;
+// "T+0:05" style in-game clock
+export function formatClock(minutes = gameMinutes()) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `T+${h}:${m.toString().padStart(2, '0')}`;
 }
 
-export function setCost(value) {
-  cost = value;
+export function addTimeline(kind, text) {
+    state.timeline.push({ t: gameMinutes(), kind, text });
 }
 
-export function resetTokens() {
-  totalTokens = { input: 0, output: 0 };
-}
-
-// Add tokens from an API response and calculate cost
-export function addTokenUsage(usage, tier = 'standard') {
-  if (!usage) return;
-
-  const inputTokens = usage.prompt_tokens || 0;
-  const outputTokens = usage.completion_tokens || 0;
-
-  totalTokens.input += inputTokens;
-  totalTokens.output += outputTokens;
-
-  // Calculate cost for this call
-  const pricing = PRICING[tier] || PRICING.standard;
-  const inputCost = (inputTokens / 1000000) * pricing.input;
-  const outputCost = (outputTokens / 1000000) * pricing.output;
-
-  cost += inputCost + outputCost;
-  updateDisplays();
-}
-
-export function setScore(value) {
-  score = value;
-}
-
-export function setCaseHistory(value) {
-  caseHistory = value;
-}
-
-export function addToCaseHistory(item) {
-  caseHistory.push(item);
-}
-
-export function setPatientData(value) {
-  patientData = value;
-}
-
-export function updatePatientData(updates) {
-  Object.assign(patientData, updates);
-}
-
-export function setVitalSigns(value) {
-  vitalSigns = value;
-}
-
-export function updateVitalSigns(updates) {
-  Object.assign(vitalSigns, updates);
-}
-
-export function updateVitalSign(key, value) {
-  vitalSigns[key] = value;
-}
-
-export function setActionInProgress(value) {
-  actionInProgress = value;
-}
-
-export function setSelectedCaseType(type) {
-  console.log("Setting selectedCaseType to:", type);
-  selectedCaseType = type;
-  console.log("New value:", selectedCaseType);
-}
-
-export function setGameIntervalId(value) {
-  gameIntervalId = value;
-}
-
-export function setPatientDeceased(value) {
-  patientDeceased = value;
-}
-
-export function setPatientCured(value) {
-  patientCured = value;
-}
-
-// DOM element references
-export const chatInput = document.getElementById('chat-input');
-export const sendMessageButton = document.getElementById('send-message');
-export const orderEntryArea = document.getElementById('order-entry');
-export const subActionsArea = document.getElementById('sub-actions');
-export const messageArea = document.getElementById('message-area');
-export const resultsArea = document.getElementById('results-area');
-export const startGameButton = document.getElementById('start-game');
-export const caseButtons = document.querySelectorAll('.case-button');
-export const actionButtons = document.getElementById('action-buttons');
-export const preGameMessage = document.getElementById('pre-game-message');
-export const patientDataSection = document.getElementById('patient-data');
-export const patientDemographics = document.getElementById('patient-demographics');
-export const chiefComplaint = document.getElementById('chief-complaint');
-export const historySection = document.getElementById('history');
-export const vitalsDisplay = document.getElementById('vitals-display');
-
-// Calculate Mean Arterial Pressure
 export function calculateMAP(systolic, diastolic) {
-    return Math.round((diastolic + (1/3) * (systolic - diastolic)) * 10) / 10;
+    return Math.round(diastolic + (systolic - diastolic) / 3);
 }
 
-// Format time for display (convert seconds to mm:ss format)
-export function formatGameTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
-
-// Update various game displays
-export function updateDisplays() {
-    // Update time display
-    document.getElementById('time-display').textContent = formatGameTime(inGameTime);
-
-    // Update cost display with tokens
-    const totalTok = totalTokens.input + totalTokens.output;
-    const costStr = cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2);
-    document.getElementById('cost-display').textContent = `${totalTok.toLocaleString()} tok · $${costStr}`;
-
-    // Update score display
-    document.getElementById('score-display').textContent = score;
-}
-
-// Increment cost when an action is performed
-export function incrementCost(amount = 0.1) {
-    cost += amount;
+export function addTokenUsage(usage, model) {
+    const input = usage.prompt_tokens || 0;
+    const output = usage.completion_tokens || 0;
+    state.tokens.input += input;
+    state.tokens.output += output;
+    const price = PRICING[model] || PRICING['deepseek-v4-pro'];
+    state.cost += (input * price.input + output * price.output) / 1e6;
     updateDisplays();
 }
 
-// Add a message to the message area
+// ---------- DOM ----------
+
+export const $ = (id) => document.getElementById(id);
+
+export function escapeHtml(text) {
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// Escaped text with **bold** and line breaks
+export function renderText(text) {
+    return escapeHtml(text)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+}
+
+export function updateDisplays() {
+    $('time-display').textContent = `Time: ${formatClock()}`;
+    $('score-display').textContent = `Score: ${state.score}`;
+    const totalTokens = state.tokens.input + state.tokens.output;
+    const costStr = state.cost < 0.01 ? state.cost.toFixed(4) : state.cost.toFixed(2);
+    $('cost-display').textContent = `${totalTokens.toLocaleString()} tok · $${costStr}`;
+}
+
+// sender: player | attending | nurse | system
 export function addMessage(sender, content) {
-    const messageElement = document.createElement('div');
-    messageElement.className = `message ${sender}-message`;
-    
-    let displayName = '';
-    switch (sender) {
-        case 'player':
-            displayName = 'You';
-            break;
-        case 'attending':
-            displayName = 'Attending';
-            break;
-        case 'nurse':
-            displayName = 'Nurse';
-            break;
-        default:
-            displayName = 'System';
-    }
-    
-    messageElement.innerHTML = `
+    const names = { player: 'You', attending: 'Attending', nurse: 'Nurse', system: 'System' };
+    const el = document.createElement('div');
+    el.className = `message ${sender}-message`;
+    el.innerHTML = `
         <div class="message-header">
-            <span class="message-sender">${displayName}</span>
-            <span class="message-time">${formatGameTime(inGameTime)}</span>
+            <span class="message-sender">${names[sender] || 'System'}</span>
+            <span class="message-time">${formatClock()}</span>
         </div>
-        <div class="message-content">${content}</div>
-    `;
-    
-    messageArea.appendChild(messageElement);
-    messageArea.scrollTop = messageArea.scrollHeight;
+        <div class="message-content">${renderText(content)}</div>`;
+    const area = $('message-area');
+    area.appendChild(el);
+    area.scrollTop = area.scrollHeight;
+    return el;
 }
 
-// Add a result to the results area
-export function addResult(content, type) {
-    const resultElement = document.createElement('div');
-    resultElement.className = `result ${type}`;
-    
-    resultElement.innerHTML = `
+// type: order | result | error | outcome | debrief
+// Result text is shown preformatted (labs and reports keep their layout)
+export function addResult(content, type, { label, html = false } = {}) {
+    const labels = { order: 'Order', result: 'Result', error: 'System', outcome: 'Outcome', debrief: 'Debrief' };
+    const el = document.createElement('div');
+    el.className = `result ${type}`;
+    el.innerHTML = `
         <div class="result-header">
-            <span class="result-time">${formatGameTime(inGameTime)}</span>
-            ${type === 'order' ? '<span class="result-type">Order</span>' : 
-              type === 'result' ? '<span class="result-type">Result</span>' : 
-              '<span class="result-type">System</span>'}
+            <span class="result-time">${formatClock()}</span>
+            <span class="result-type">${escapeHtml(label || labels[type] || 'System')}</span>
         </div>
-        <div class="result-content">${content}</div>
-    `;
-    
-    resultsArea.appendChild(resultElement);
-    resultsArea.scrollTop = resultsArea.scrollHeight;
+        <div class="result-content${type === 'result' ? ' preformatted' : ''}">${html ? content : renderText(content)}</div>`;
+    const area = $('results-area');
+    area.appendChild(el);
+    area.scrollTop = area.scrollHeight;
+    return el;
 }
 
-// Reset game state
-export function resetGame() {
-    setGameActive(false);
-    setPatientDeceased(false);
-    setPatientCured(false);
-    resetTokens();
-    cost = 0;
-
-    if (gameIntervalId) {
-        clearInterval(gameIntervalId);
-        setGameIntervalId(null);
+export function showVitals(note = '') {
+    const v = state.vitals;
+    const display = $('vitals-display');
+    if (!v) {
+        display.innerHTML = '<p>Select a case type and start the game to see vital signs.</p>';
+        return;
     }
-    
-    // Enable start button and case selection
-    startGameButton.disabled = false;
-    startGameButton.classList.remove('disabled');
-    caseButtons.forEach(btn => btn.disabled = false);
-    
-    // Disable game controls
-    chatInput.disabled = true;
-    sendMessageButton.disabled = true;
-    actionButtons.parentElement.classList.add('hidden');
-    preGameMessage.classList.remove('hidden');
-    patientDataSection.classList.add('hidden');
+    const prev = state.vitalsHistory.length > 1 ? state.vitalsHistory[state.vitalsHistory.length - 2].vitals : null;
+    const trend = (key) => {
+        if (!prev || prev[key] === v[key]) return '';
+        return v[key] > prev[key] ? ' <span class="trend">↑</span>' : ' <span class="trend">↓</span>';
+    };
+    display.innerHTML = `
+        <p><strong>HR:</strong> ${v.HR} bpm${trend('HR')}</p>
+        <p><strong>BP:</strong> ${v.BPSystolic}/${v.BPDiastolic} mmHg${trend('BPSystolic')}</p>
+        <p><strong>MAP:</strong> ${calculateMAP(v.BPSystolic, v.BPDiastolic)} mmHg</p>
+        <p><strong>RR:</strong> ${v.RR} /min${trend('RR')}</p>
+        <p><strong>Temp:</strong> ${Number(v.Temp).toFixed(1)} °C${trend('Temp')}</p>
+        <p><strong>SpO₂:</strong> ${v.O2Sat}%${trend('O2Sat')}</p>
+        ${note}
+        <p><em>Updated ${formatClock()}</em></p>`;
+}
+
+// Enable or disable everything that only works during a running case
+export function setPlayControls(enabled) {
+    $('chat-input').disabled = !enabled;
+    $('send-message').disabled = !enabled;
+    $('action-buttons').classList.toggle('hidden', !enabled);
+    document.querySelectorAll('#action-buttons .action-button').forEach(btn => { btn.disabled = !enabled; });
+    if (!enabled) {
+        $('sub-actions').classList.add('hidden');
+        $('order-entry').classList.add('hidden');
+    }
+    $('end-game').classList.toggle('hidden', !enabled);
+}
+
+// Enable or disable case selection
+export function setCaseSelection(enabled) {
+    document.querySelectorAll('.case-button').forEach(btn => { btn.disabled = !enabled; });
+    const start = $('start-game');
+    const canStart = enabled && !!state.caseType;
+    start.disabled = !canStart;
+    start.classList.toggle('disabled', !canStart);
 }

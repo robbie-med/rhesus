@@ -241,27 +241,104 @@
             background-color: #c0392b;
         }
         
-        #debug-buttons {
-            margin-top: 15px;
-            padding: 10px;
-            background-color: #f1c40f;
-            border-radius: 4px;
+        .result-content.preformatted {
+            white-space: pre-wrap;
+            font-family: Menlo, Consolas, "Courier New", monospace;
+            font-size: 0.88em;
         }
-        
-        .debug-button {
-            margin: 5px;
-            padding: 8px 15px;
-            background-color: #f39c12;
-            color: white;
-            border: none;
+
+        .result.pending {
+            opacity: 0.6;
+        }
+
+        .result.outcome {
+            border-left-color: #7f8c8d;
+            background-color: #f4f6f6;
+        }
+
+        .result.outcome-recovered {
+            border-left-color: #2ecc71;
+            background-color: #e8f8f2;
+        }
+
+        .result.outcome-deceased {
+            border-left-color: #c0392b;
+            background-color: #fadbd8;
+        }
+
+        .result.debrief {
+            border-left-color: #8e44ad;
+            background-color: #f5eef8;
+            line-height: 1.45;
+        }
+
+        .result h3 {
+            margin: 0 0 6px;
+        }
+
+        .message.typing .message-content {
+            color: #7f8c8d;
+        }
+
+        .status-critical {
+            color: #c0392b;
+            font-weight: bold;
+        }
+
+        .status-stable {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .trend {
+            color: #7f8c8d;
+        }
+
+        .case-status {
+            margin: 0 0 8px;
+            padding: 6px 8px;
             border-radius: 4px;
-            cursor: pointer;
+            background-color: #fef5e7;
+            color: #7e5109;
+            font-size: 0.9em;
+        }
+
+        .case-status.ready {
+            background-color: #e8f8f2;
+            color: #1e8449;
+        }
+
+        .case-badge {
+            margin-left: 6px;
+            font-size: 0.85em;
+        }
+
+        .case-badge.generating {
+            display: inline-block;
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            50% { opacity: 0.3; }
+        }
+
+        #version {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-left: 8px;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 0.8em;
+            color: #7f8c8d;
+            padding: 6px;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Rhesus⚕️</h1>
+        <h1>Rhesus⚕️<span id="version"></span></h1>
         <div class="game-info">
             <div id="time-display">Time: 00:00</div>
             <div id="score-display">Score: 0</div>
@@ -275,6 +352,7 @@
             <div class="panel-content" id="data-panel">
                 <div class="case-selector">
                     <h3>Select Case Type:</h3>
+                    <div id="case-status" class="case-status">Standby, generating cases…</div>
                     <button class="case-button" data-type="cardiovascular">Cardiovascular</button>
                     <button class="case-button" data-type="infectious">Infectious Disease</button>
                     <button class="case-button" data-type="emergency">Emergency</button>
@@ -335,7 +413,8 @@
                     <h3>Welcome to the Medical Resident Simulation!</h3>
                     <p>This game simulates clinical scenarios to test your medical knowledge and decision-making skills.</p>
                     <p>To begin, select a case type from the Data panel and click "Start Case".</p>
-                    <p>You'll need to diagnose and treat your patient, communicating with your Attending and Nurse along the way.</p>
+                    <p>Work up and treat your patient through the Actions panel. Message the attending with <strong>@md</strong> and the nurse with <strong>@rn</strong> (the nurse can ask the patient questions for you).</p>
+                    <p>Every in-game minute (10 seconds) the patient's vitals update. Delays and harmful orders have consequences.</p>
                     <p>Remember, every action has consequences. Good luck!</p>
                 </div>
                 <div class="chat-section">
@@ -350,38 +429,10 @@
         </div>
     </div>
     
-    <!-- Fix for DOM element references -->
-    <script>
-        // This script runs before modules load to ensure DOM is properly initialized
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM fully loaded, checking elements before module initialization");
-            
-            // Force initialization for action buttons visibility
-            const startGame = document.getElementById('start-game');
-            if (startGame) {
-                const originalStartClick = startGame.onclick;
-                startGame.onclick = function(e) {
-                    // Call original handler if exists
-                    if (originalStartClick) originalStartClick.call(this, e);
-                    
-                    // Force action buttons to show
-                    setTimeout(() => {
-                        console.log("Forcing action buttons visibility after click");
-                        const actionButtons = document.getElementById('action-buttons');
-                        const preGameMessage = document.getElementById('pre-game-message');
-                        
-                        if (actionButtons) actionButtons.classList.remove('hidden');
-                        if (preGameMessage) preGameMessage.classList.add('hidden');
-                    }, 2000); // Give the game a chance to initialize
-                };
-            }
-        });
-    </script>
-    
     <!-- Load the main.js module which will handle importing the other modules -->
-    <script type="module" src="main.js"></script>
+    <script type="module" src="main.js?v=2.0.0"></script>
+    <footer>
+        <p>made by robbie.med | <a href="https://robbiemed.org">get in contact</a> | A.D. 2025, S.D.G.</p>
+    </footer>
 </body>
-<footer>
-  <p>made by robbie.med | <a href="http://robbiemed.org"> | get in contact</a> A.D. 2025, S.D.G.</p>
-</footer>
 </html>

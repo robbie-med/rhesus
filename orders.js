@@ -1,428 +1,149 @@
-// Import shared functions and variables
+// Order entry, results and grading
 import {
-  addMessage, addResult, setScore, formatGameTime,
-  gameActive, actionInProgress, caseHistory, vitalSigns, patientData,
-  score, updateDisplays, inGameTime, setActionInProgress,
-  orderEntryArea, subActionsArea, patientDeceased, patientCured,
-  resultsArea
-} from './utils.js';
-import { callAPI } from './api.js';
-import { handlePatientDeath, handlePatientCured } from './game_logic.js';
+    state, gameMinutes, addTimeline, updateDisplays, addMessage, addResult, $
+} from './utils.js?v=2.0.0';
+import { callJSON } from './api.js?v=2.0.0';
+import { orderMessages } from './prompts.js?v=2.0.0';
 
-// Evaluate an order for scoring
-async function evaluateOrder(orderDetails, result) {
-    // Don't evaluate if patient is already in a terminal state
-    if (patientDeceased || patientCured) return;
+const LAB_NAMES = {
+    'cbc': 'Complete Blood Count',
+    'cmp': 'Comprehensive Metabolic Panel',
+    'cardiac-enzymes': 'Cardiac Enzymes',
+    'coagulation': 'Coagulation Studies',
+    'abg': 'Arterial Blood Gas',
+    'cultures': 'Cultures & Sensitivity',
+    'urinalysis': 'Urinalysis',
+    'other-labs': 'Other Laboratory Tests'
+};
 
-    // Create a prompt for evaluating the order
-    const evaluationPrompt = `
-    Evaluate the medical appropriateness of the following order in the context of this patient case:
-    
-    Patient information:
-    - Diagnosis (hidden from player): ${patientData.diagnosis}
-    - Demographics: ${patientData.demographics}
-    - Chief complaint: ${patientData.chiefComplaint}
-    - History: ${patientData.history}
-    
-    Current vitals:
-    - HR: ${vitalSigns.HR} bpm
-    - BP: ${vitalSigns.BPSystolic}/${vitalSigns.BPDiastolic} mmHg
-    - MAP: ${vitalSigns.MAP} mmHg
-    - RR: ${vitalSigns.RR} breaths/min
-    - Temp: ${vitalSigns.Temp}°C
-    - O2Sat: ${vitalSigns.O2Sat}%
-    
-    Recent case history:
-    ${caseHistory.slice(-8).map(event => `- ${formatGameTime(event.time)}: ${event.event}`).join('\n')}
-    
-    Order details:
-    ${JSON.stringify(orderDetails, null, 2)}
-    
-    Order result:
-    ${result}
-    
-    Please evaluate whether this order was:
-    1. Appropriate and indicated (good clinical decision)
-    2. Not harmful but unnecessary (wasteful)
-    3. Potentially harmful or contraindicated (poor clinical decision)
-    
-    Return a JSON object with the following structure:
-    {
-      "evaluation": "appropriate" or "unnecessary" or "harmful",
-      "scoreImpact": number between -10 and 0 (0 for appropriate, -1 to -3 for unnecessary, -4 to -10 for harmful),
-      "feedback": "Brief explanation of the evaluation"
-    }
-    
-    Consider standard of care guidelines, the patient's condition, and potential adverse effects in your evaluation.`;
-    
-    try {
-        const response = await callAPI([{ role: "user", content: evaluationPrompt }]);
-        const content = response.choices[0].message.content;
-        
-        // Try to extract JSON from the response
-        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/) || content.match(/{[\s\S]*?}/);
-        
-        if (jsonMatch) {
-            const evaluation = JSON.parse(jsonMatch[0].replace(/```json\n|```\n|```/g, ''));
-            
-            // Update the score
-            setScore(score + evaluation.scoreImpact);
-            updateDisplays();
-            
-            // Check for patient death or recovery based on evaluation and result text
-            checkForTerminalOutcomes(evaluation, result, orderDetails);
-            
-            // If the order was harmful, have the attending comment
-            if (evaluation.evaluation === 'harmful' && Math.random() < 0.8 && !patientDeceased) {
-                setTimeout(() => {
-                    addMessage('attending', `I'm concerned about your decision to ${getOrderSummary(orderDetails)}. ${evaluation.feedback}`);
-                }, 3000);
-            }
-            
-            // If the order was unnecessary, occasionally have the attending comment
-            if (evaluation.evaluation === 'unnecessary' && Math.random() < 0.4) {
-                setTimeout(() => {
-                    addMessage('attending', `Was it necessary to ${getOrderSummary(orderDetails)}? ${evaluation.feedback}`);
-                }, 3000);
-            }
-            
-            // For appropriate orders that significantly improve the patient, have the nurse comment
-            if (evaluation.evaluation === 'appropriate' && evaluation.scoreImpact === 0 && Math.random() < 0.3) {
-                setTimeout(() => {
-                    addMessage('nurse', `The patient seems to be responding well to your management.`);
-                }, 5000);
-            }
-            
-            return evaluation;
-        }
-    } catch (error) {
-        console.error('Error evaluating order:', error);
-    }
-    
-    return null;
-}
+const value = (id) => ($(id)?.value || '').trim();
 
-// Check for patient death or recovery based on evaluation and result text
-function checkForTerminalOutcomes(evaluation, resultText, orderDetails) {
-    // Don't check if already in a terminal state
-    if (patientDeceased || patientCured) return;
-    
-    const resultLower = resultText.toLowerCase();
-    
-    // Check for death indicators
-    if ((evaluation.evaluation === 'harmful' && evaluation.scoreImpact <= -8) || 
-        resultLower.includes("cardiac arrest") || 
-        resultLower.includes("death") || 
-        resultLower.includes("died") || 
-        resultLower.includes("fatal") ||
-        resultLower.includes("expired") ||
-        resultLower.includes("expire") ||
-        resultLower.includes("deceased")) {
-        
-        // Extract the cause of death if possible
-        let causeOfDeath = "";
-        
-        if (orderDetails.type === 'medication') {
-            causeOfDeath = `Medication error: ${orderDetails.medication} ${orderDetails.dosage}`;
-        } else {
-            causeOfDeath = "Critical clinical error";
-        }
-        
-        // If there's a more specific cause in the result, use that
-        if (resultLower.includes("due to")) {
-            const parts = resultLower.split("due to");
-            if (parts.length > 1) {
-                causeOfDeath = parts[1].split('.')[0].trim();
-                causeOfDeath = causeOfDeath.charAt(0).toUpperCase() + causeOfDeath.slice(1);
-            }
-        }
-        
-        handlePatientDeath(causeOfDeath);
-    }
-    
-    // Check for recovery indicators
-    else if (evaluation.evaluation === 'appropriate' && 
-             score >= 8 && 
-             (resultLower.includes("improved") || 
-              resultLower.includes("stabilized") || 
-              resultLower.includes("stable") || 
-              resultLower.includes("recovery") || 
-              resultLower.includes("resolved"))) {
-        
-        // If this might be a diagnostic intervention, include diagnosis
-        let recoveryReason = "Treatment has successfully stabilized the patient";
-        
-        if (orderDetails.type === 'imaging' || orderDetails.type === 'lab' || orderDetails.type === 'consult') {
-            recoveryReason = `Diagnosis confirmed as ${patientData.diagnosis} and appropriate treatment administered`;
-        } else if (orderDetails.type === 'medication') {
-            recoveryReason = `The administration of ${orderDetails.medication} has effectively treated the patient's condition`;
-        }
-        
-        handlePatientCured(recoveryReason);
-    }
-}
-
-// Generate a result for an order
-async function generateOrderResult(orderDetails) {
-    // If patient is already in a terminal state, don't generate new results
-    if (patientDeceased) {
-        addResult("Cannot process new orders. The patient is in cardiac arrest.", 'error');
-        return;
-    }
-
-    if (patientCured) {
-        addResult("Order placed, but patient is already stabilized and ready for discharge.", 'result');
-        return;
-    }
-    
-    // Create a prompt for generating a result based on the order
-    const resultPrompt = `
-    Based on the following patient case and timeline of events, generate a realistic result for the ordered ${orderDetails.type}.
-
-    Patient information:
-    - Diagnosis (hidden from player): ${patientData.diagnosis}
-    - Demographics: ${patientData.demographics}
-    - Chief complaint: ${patientData.chiefComplaint}
-    - History: ${patientData.history}
-
-    Current vitals:
-    - HR: ${vitalSigns.HR} bpm
-    - BP: ${vitalSigns.BPSystolic}/${vitalSigns.BPDiastolic} mmHg
-    - MAP: ${vitalSigns.MAP} mmHg
-    - RR: ${vitalSigns.RR} breaths/min
-    - Temp: ${vitalSigns.Temp}°C
-    - O2Sat: ${vitalSigns.O2Sat}%
-
-    Recent events:
-    ${caseHistory.slice(-8).map(event => `- ${formatGameTime(event.time)}: ${event.event}`).join('\n')}
-
-    Order details:
-    ${JSON.stringify(orderDetails, null, 2)}
-
-    CRITICAL: Provide physiologically accurate results that reflect the developing case and underlying condition (${patientData.diagnosis}). Do NOT explicitly state the diagnosis. Do NOT provide any interpretation, assessment, or clinical impression—ONLY raw data and objective findings.
-
-    Format requirements by order type:
-
-    LAB TEST: Return values in ASCII skeleton/fishbone format where applicable. Example for BMP:
-    Na ${'>'}|< Cl
-    K  >|< CO2
-       BUN/Cr
-       Glucose
-    For CBC: WBC / Hgb / Hct / Plt with differential if ordered.
-    Just numbers with units. NO interpretation.
-
-    IMAGING: Findings ONLY. Example: "PA and lateral chest: Bilateral lower lobe opacities. Small right pleural effusion. No pneumothorax. Cardiac silhouette normal." NO impression or interpretation.
-
-    PROCEDURE: Describe what was done and objective findings ONLY. Example: "Paracentesis: 1.2L straw-colored fluid removed. Sent for cell count, culture, albumin, protein." NO interpretation.
-
-    PHYSICAL EXAM: Objective findings ONLY. Example: "Abdomen: Distended, positive fluid wave, no tenderness, no guarding. Bowel sounds hypoactive." NO interpretation.
-
-    MEDICATION: Brief objective patient response. Example: "BP improved to 128/78 after second dose. HR 88." It's okay if the patient deteriorates or dies.
-
-    CONSULT: Consultant's objective findings and specific recommendations ONLY. NO diagnostic impressions.`;
-
-    try {
-        const response = await callAPI([{ role: "user", content: resultPrompt }]);
-        const content = response.choices[0].message.content;
-        
-        // Add the result to the results area
-        addResult(content, 'result');
-        
-        // Add to case history
-        caseHistory.push({
-            time: inGameTime,
-            event: `Result received: ${orderDetails.type}`,
-            data: { 
-                orderDetails, 
-                result: content 
-            }
-        });
-        
-        // Check if the order affects the score
-        await evaluateOrder(orderDetails, content);
-        
-    } catch (error) {
-        console.error('Error generating order result:', error);
-        addResult('Error: Could not retrieve result for this order.', 'error');
-    }
-}
-
-// Generate a summary of an order for display
-function getOrderSummary(orderDetails) {
-    switch (orderDetails.type) {
+export function getOrderSummary(o) {
+    switch (o.type) {
         case 'medication':
-            return `${orderDetails.medication} ${orderDetails.dosage} ${orderDetails.route} ${orderDetails.frequency}`;
+            return `${o.medication === 'other' ? o.notes : o.medication} ${o.dosage} ${o.route} ${o.frequency}${o.medication !== 'other' && o.notes ? ` (${o.notes})` : ''}`;
         case 'lab':
-            return `${getLableDisplayName(orderDetails.test)} (${orderDetails.urgency})`;
+            return `${LAB_NAMES[o.test] || o.test} (${o.urgency})${o.notes ? ` – ${o.notes}` : ''}`;
         case 'exam':
-            return `${orderDetails.area} ${orderDetails.focus ? '- ' + orderDetails.focus : ''}`;
+            return `${o.area} exam${o.focus ? ` – ${o.focus}` : ''}`;
         case 'imaging':
-            return `${orderDetails.study} - ${orderDetails.details} (${orderDetails.contrast === 'none' ? 'No contrast' : orderDetails.contrast + ' contrast'}, ${orderDetails.urgency})`;
+            return `${o.study} – ${o.details} (${o.contrast === 'none' ? 'no contrast' : `${o.contrast} contrast`}, ${o.urgency})`;
         case 'procedure':
-            return `${orderDetails.procedure} ${orderDetails.details ? '- ' + orderDetails.details : ''}`;
+            return `${o.procedure}${o.details ? ` – ${o.details}` : ''}`;
         case 'consult':
-            return `${orderDetails.specialty} - ${orderDetails.reason} (${orderDetails.urgency})`;
+            return `${o.specialty} consult – ${o.reason} (${o.urgency})`;
         default:
             return '';
     }
 }
 
-// Get a display name for a lab test
-function getLableDisplayName(labId) {
-    const labNames = {
-        'cbc': 'Complete Blood Count',
-        'cmp': 'Comprehensive Metabolic Panel',
-        'cardiac-enzymes': 'Cardiac Enzymes',
-        'coagulation': 'Coagulation Studies',
-        'abg': 'Arterial Blood Gas',
-        'cultures': 'Cultures & Sensitivity',
-        'urinalysis': 'Urinalysis',
-        'other-labs': 'Other Laboratory Tests'
-    };
-    
-    return labNames[labId] || labId;
-}
-
-// Submit an order
-async function submitOrder(action, subActionId, subActionName) {
-    console.log("submitOrder called:", { gameActive, actionInProgress });
-    if (!gameActive || actionInProgress) {
-        console.log("submitOrder returning early because gameActive is false or actionInProgress is true");
-        return;
-    }
-    
-    // Check if patient is in a terminal state
-    if (patientDeceased) {
-        addResult("Cannot place orders. The patient is in cardiac arrest.", 'error');
-        return;
-    }
-    
-    if (patientCured) {
-        addResult("The patient is already stable and ready for discharge. No new orders needed.", 'result');
-        return;
-    }
-    
-    setActionInProgress(true);
-    
-    // Get the order details based on the form
-    let orderDetails = {};
-    
+// Build the order from the open form; returns null (after alerting) if incomplete
+function readOrderForm(action, subActionId) {
     switch (action) {
-        case 'drugs':
-            const medication = document.getElementById('medication-select').value;
-            const dosage = document.getElementById('dosage-input').value;
-            const route = document.getElementById('route-select').value;
-            const frequency = document.getElementById('frequency-select').value;
-            
-            if (!medication || !dosage) {
-                alert('Please select a medication and specify a dosage.');
-                setActionInProgress(false);
-                return;
-            }
-            
-            orderDetails = {
-                type: 'medication',
-                medication,
-                dosage,
-                route,
-                frequency,
-                category: subActionId
+        case 'drugs': {
+            const order = {
+                type: 'medication', category: subActionId,
+                medication: value('medication-select'), dosage: value('dosage-input'),
+                route: value('route-select'), frequency: value('frequency-select'), notes: value('drug-notes')
             };
-            break;
+            if (!order.medication || !order.dosage) {
+                alert('Select a medication and enter a dose.');
+                return null;
+            }
+            if (order.medication === 'other' && !order.notes) {
+                alert('Enter the medication name in the notes field.');
+                return null;
+            }
+            return order;
+        }
         case 'labs':
-            const urgency = document.getElementById('urgency-select').value;
-            const labNotes = document.getElementById('lab-notes').value;
-            
-            orderDetails = {
-                type: 'lab',
-                test: subActionId,
-                urgency,
-                notes: labNotes
-            };
-            break;
+            return { type: 'lab', test: subActionId, urgency: value('urgency-select'), notes: value('lab-notes') };
         case 'exam':
-            const examFocus = document.getElementById('exam-focus').value;
-            
-            orderDetails = {
-                type: 'exam',
-                area: subActionId,
-                focus: examFocus
+            return { type: 'exam', area: subActionId, focus: value('exam-focus') };
+        case 'imaging': {
+            const order = {
+                type: 'imaging', study: subActionId, details: value('imaging-details'),
+                contrast: value('contrast-select'), urgency: value('imaging-urgency-select')
             };
-            break;
-        case 'imaging':
-            const imagingDetails = document.getElementById('imaging-details').value;
-            const contrast = document.getElementById('contrast-select').value;
-            const imagingUrgency = document.getElementById('imaging-urgency-select').value;
-            
-            if (!imagingDetails) {
-                alert('Please specify the body region and clinical question.');
-                setActionInProgress(false);
-                return;
+            if (!order.details) {
+                alert('Enter the body region and clinical question.');
+                return null;
             }
-            
-            orderDetails = {
-                type: 'imaging',
-                study: subActionId,
-                details: imagingDetails,
-                contrast,
-                urgency: imagingUrgency
-            };
-            break;
+            return order;
+        }
         case 'procedures':
-            const procedureDetails = document.getElementById('procedure-details').value;
-            
-            orderDetails = {
-                type: 'procedure',
-                procedure: subActionId,
-                details: procedureDetails
+            return { type: 'procedure', procedure: subActionId, details: value('procedure-details') };
+        case 'consults': {
+            const order = {
+                type: 'consult', specialty: subActionId,
+                reason: value('consult-reason'), urgency: value('consult-urgency-select')
             };
-            break;
-        case 'consults':
-            const consultReason = document.getElementById('consult-reason').value;
-            const consultUrgency = document.getElementById('consult-urgency-select').value;
-            
-            if (!consultReason) {
-                alert('Please provide a reason for the consult.');
-                setActionInProgress(false);
-                return;
+            if (!order.reason) {
+                alert('Enter a reason for the consult.');
+                return null;
             }
-            
-            orderDetails = {
-                type: 'consult',
-                specialty: subActionId,
-                reason: consultReason,
-                urgency: consultUrgency
-            };
-            break;
+            return order;
+        }
     }
-    
-    // Add to case history
-    const orderEvent = `Ordered ${subActionName}: ${getOrderSummary(orderDetails)}`;
-    caseHistory.push({
-        time: inGameTime,
-        event: orderEvent,
-        data: orderDetails
-    });
-    
-    // Display the order in the results area
-    addResult(`Order placed: ${getOrderSummary(orderDetails)}`, 'order');
-    
-    // Hide the order form
-    orderEntryArea.classList.add('hidden');
-    subActionsArea.classList.add('hidden');
-
-    // Generate a result for the order (cost tracked via token usage)
-    await generateOrderResult(orderDetails);
-    
-    setActionInProgress(false);
+    return null;
 }
 
-// Export functions for use in other modules
-export { 
-    evaluateOrder, 
-    generateOrderResult, 
-    getOrderSummary, 
-    getLableDisplayName, 
-    submitOrder,
-    checkForTerminalOutcomes
-};
+export async function submitOrder(action, subActionId, subActionName) {
+    if (!state.active) return;
+    if (state.orderInFlight) {
+        alert('Wait for the current order to come back.');
+        return;
+    }
+
+    const order = readOrderForm(action, subActionId);
+    if (!order) return;
+
+    const summary = getOrderSummary(order);
+    const caseFile = state.caseFile;
+    const placedAt = gameMinutes();
+    state.orderInFlight = true;
+    $('order-entry').classList.add('hidden');
+    $('sub-actions').classList.add('hidden');
+
+    const placed = addResult(`Order placed: ${summary}`, 'order');
+    placed.classList.add('pending');
+    addTimeline('order', summary);
+
+    try {
+        const reply = await callJSON(orderMessages({ ...order, summary }), { tier: 'standard', maxTokens: 1500, temperature: 0.4 });
+        if (state.caseFile !== caseFile || !state.active) return;
+
+        const result = String(reply.result || '').trim() || 'No result returned.';
+        addResult(result, 'result', { label: subActionName });
+        addTimeline('result', `${summary}: ${result}`);
+        if (reply.effect && !/^none\.?$/i.test(String(reply.effect).trim())) {
+            addTimeline('effect', `${summary}: ${reply.effect}`);
+        }
+
+        const rating = ['key', 'appropriate', 'unnecessary', 'harmful'].includes(reply.rating) ? reply.rating : 'appropriate';
+        const points = Math.max(-10, Math.min(10, Math.round(Number(reply.points) || 0)));
+        state.score += points;
+        state.scoreLog.push({ t: placedAt, order: summary, rating, points, feedback: reply.feedback || '' });
+        const keyId = reply.keyInterventionId;
+        if (keyId && !state.creditedInterventions.includes(keyId)) state.creditedInterventions.push(keyId);
+        updateDisplays();
+
+        // The attending reacts to harmful orders, and sometimes to unnecessary ones
+        if (reply.feedback && (rating === 'harmful' || (rating === 'unnecessary' && Math.random() < 0.4))) {
+            const comment = rating === 'harmful'
+                ? `I'm concerned about that last order. ${reply.feedback}`
+                : `Was that last order necessary? ${reply.feedback}`;
+            setTimeout(() => {
+                if (!state.active || state.caseFile !== caseFile) return;
+                addMessage('attending', comment);
+                state.chats.attending.push({ role: 'assistant', content: comment });
+            }, 2500);
+        }
+    } catch (error) {
+        console.error('Order failed:', error);
+        if (state.caseFile === caseFile) addResult(`Couldn't process the order (${error.message}). Try again.`, 'error');
+    } finally {
+        placed.classList.remove('pending');
+        if (state.caseFile === caseFile) state.orderInFlight = false;
+    }
+}

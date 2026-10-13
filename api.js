@@ -1,69 +1,92 @@
-// Real API integration
-console.log("API module loaded");
+// AI API access through the Cloudflare Worker proxy (the API key stays on the worker)
+import { addTokenUsage } from './utils.js?v=2.0.0';
 
-import { addTokenUsage } from './utils.js';
-
-// Cloudflare Worker proxy URL - keeps API key secure on server side
 const WORKER_URL = "https://rhesus.w4yq4gvh58.workers.dev/";
 
-// Model tiers for cost optimization
-// - 'standard': DeepSeek V4 Pro for complex medical reasoning (case generation, vitals, order evaluation)
-// - 'lite': DeepSeek V4.1 Flash for simple tasks (chat responses, text formatting)
-const MODELS = {
-    standard: "deepseek-v4-pro",  // deep clinical reasoning
-    lite: "deepseek-flash"        // routine text generation
+// - 'standard': case generation, order results and grading, debrief
+// - 'lite': vitals simulation and team chat
+export const MODELS = {
+    standard: "deepseek-v4-pro",
+    lite: "deepseek-flash"
 };
 
-// Call the AI API through the secure proxy
-// tier: 'standard' (default) for medical reasoning, 'lite' for chat/simple tasks
-export async function callAPI(messages, maxTokens = 1000, temperature = 0.7, tier = 'standard') {
+// Low-level call. Returns { content, usage }.
+// reasoning: let the model think first. Thinking tokens count against maxTokens,
+// so reasoning calls need a much larger budget.
+export async function callAPI(messages, {
+    tier = 'standard',
+    maxTokens = 1000,
+    temperature = 0.7,
+    json = false,
+    reasoning = false
+} = {}) {
     const model = MODELS[tier] || MODELS.standard;
-    console.log(`Calling API [${tier}/${model}]:`, messages[0].content.substring(0, 50) + "...");
+    const body = {
+        model,
+        messages,
+        max_tokens: maxTokens,
+        temperature,
+        thinking: { type: reasoning ? 'enabled' : 'disabled' }
+    };
+    if (json) body.response_format = { type: 'json_object' };
 
+    const response = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data?.choices?.length) {
+        const message = data?.error?.message || data?.error || `HTTP ${response.status}`;
+        throw new Error(`API error: ${typeof message === 'string' ? message : JSON.stringify(message)}`);
+    }
+
+    if (data.usage) addTokenUsage(data.usage, model);
+
+    const choice = data.choices[0];
+    const content = choice.message?.content || '';
+    if (!content.trim()) {
+        throw new Error(`Empty response (finish_reason: ${choice.finish_reason})`);
+    }
+    return { content, usage: data.usage };
+}
+
+// Parse a JSON reply, tolerating a stray code fence, surrounding text or trailing commas
+export function parseJSON(text) {
+    let cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     try {
-        const response = await fetch(WORKER_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: model,
-                messages: messages,
-                max_tokens: maxTokens,
-                temperature: temperature,
-                // DeepSeek V4 reasons by default and counts it against max_tokens,
-                // which leaves no room for the answer at these limits
-                thinking: { type: 'disabled' }
-            })
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            console.error('API response not OK:', response.status, errorData);
-            throw new Error(`API request failed with status ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log("API response received:", data);
+        return JSON.parse(cleaned);
+    } catch {
+        const start = cleaned.indexOf('{');
+        const end = cleaned.lastIndexOf('}');
+        if (start === -1 || end <= start) throw new Error('Response was not valid JSON');
+        cleaned = cleaned.slice(start, end + 1).replace(/,(\s*[}\]])/g, '$1');
+        return JSON.parse(cleaned);
+    }
+}
 
-        // Track token usage and costs
-        if (data.usage) {
-            addTokenUsage(data.usage, tier);
+// JSON call with one retry on network, empty-response or parse failure
+export async function callJSON(messages, options = {}) {
+    let lastError;
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            const { content } = await callAPI(messages, { ...options, json: true });
+            return parseJSON(content);
+        } catch (error) {
+            lastError = error;
+            console.warn(`JSON call failed (attempt ${attempt + 1}):`, error.message);
         }
+    }
+    throw lastError;
+}
 
-        return data;
+// Text call with one retry
+export async function callText(messages, options = {}) {
+    try {
+        return (await callAPI(messages, options)).content.trim();
     } catch (error) {
-        console.error('API call failed:', error);
-        
-        // Enhanced error handling
-        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-            console.error('Network error - check your internet connection or worker URL');
-        } else if (error.message.includes('401') || error.message.includes('500')) {
-            console.error('Server error - check your Cloudflare Worker configuration');
-        } else if (error.message.includes('429')) {
-            console.error('Rate limit exceeded - you\'re sending too many requests');
-        }
-        
-        throw error;
+        console.warn('Text call failed, retrying:', error.message);
+        return (await callAPI(messages, options)).content.trim();
     }
 }

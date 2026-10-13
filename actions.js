@@ -1,6 +1,9 @@
 // Import shared variables
-import { orderEntryArea, subActionsArea, actionInProgress } from './utils.js';
-import { submitOrder } from './orders.js';
+import { $ } from './utils.js?v=2.0.0';
+import { submitOrder } from './orders.js?v=2.0.0';
+
+const orderEntryArea = $('order-entry');
+const subActionsArea = $('sub-actions');
 
 // Get drug options based on the category
 function getDrugOptions(category) {
@@ -130,6 +133,10 @@ function getDrugOptions(category) {
             options = '<option value="">Select medication...</option>';
     }
     
+    // Every category accepts a drug that isn't listed
+    if (!options.includes('value="other"')) {
+        options += '<option value="other">Other (enter name in notes)</option>';
+    }
     return options;
 }
 
@@ -287,6 +294,7 @@ function handleSubAction(action, subActionId, subActionName) {
                     <option value="PRN">PRN</option>
                     <option value="continuous">Continuous</option>
                 </select>
+                <input type="text" id="drug-notes" placeholder="Notes, or the drug name if Other">
             `;
             break;
         case 'labs':

@@ -1,104 +1,45 @@
-// Import shared functions and variables
-import {
-    addMessage, formatGameTime, gameActive, caseHistory,
-    vitalSigns, patientData, chatInput, patientDeceased, patientCured
-} from './utils.js';
-import { callAPI } from './api.js';
+// Team chat: @md goes to the attending, @rn to the nurse (default: attending)
+import { state, addMessage, $ } from './utils.js?v=2.0.0';
+import { callText } from './api.js?v=2.0.0';
+import { chatMessages } from './prompts.js?v=2.0.0';
 
-// Send a message to the attending or nurse
-async function sendMessage() {
-    if (!gameActive || !chatInput.value.trim()) return;
-    
-    const message = chatInput.value.trim();
-    chatInput.value = '';
-    
-    // Determine the recipient based on prefix
-    let recipient = 'system';
-    let content = message;
-    
-    if (message.startsWith('@md:') || message.startsWith('@md ')) {
-        recipient = 'attending';
-        content = message.replace(/^@md:?\s*/, '');
-    } else if (message.startsWith('@rn:') || message.startsWith('@rn ')) {
-        recipient = 'nurse';
-        content = message.replace(/^@rn:?\s*/, '');
-    } else {
-        // If no prefix, default to attending
-        recipient = 'attending';
-    }
-    
-    // Add the player's message to the chat
+function parseRecipient(message) {
+    const match = message.match(/^@(md|rn)\b:?\s*/i);
+    if (!match) return { recipient: 'attending', content: message };
+    return {
+        recipient: match[1].toLowerCase() === 'rn' ? 'nurse' : 'attending',
+        content: message.slice(match[0].length)
+    };
+}
+
+export async function sendMessage() {
+    const input = $('chat-input');
+    const message = input.value.trim();
+    if (!state.active || !message) return;
+    input.value = '';
+
+    const { recipient, content } = parseRecipient(message);
+    if (!content) return;
+
     addMessage('player', message);
+    const history = state.chats[recipient];
+    history.push({ role: 'user', content });
 
-    // Generate a response from the recipient (cost tracked via token usage)
-    await generateResponse(recipient, content);
-}
+    const caseFile = state.caseFile;
+    const typing = addMessage(recipient, '…');
+    typing.classList.add('typing');
 
-// Generate a response from the attending or nurse
-async function generateResponse(recipient, message) {
-    // Handle special responses for terminal states
-    if (patientDeceased) {
-        if (recipient === 'nurse') {
-            addMessage('nurse', "Code team is working on the patient right now. We're in the middle of a cardiac arrest situation.");
-            return;
-        } else if (recipient === 'attending') {
-            addMessage('attending', "We've lost this patient. We should debrief on what happened and what could have been done differently.");
-            return;
-        }
-    }
-    
-    if (patientCured) {
-        if (recipient === 'nurse') {
-            addMessage('nurse', "The patient is stable and doing well. Their vitals have normalized, and they're ready for transfer to the floor.");
-            return;
-        } else if (recipient === 'attending') {
-            addMessage('attending', "Good job with this case. The patient has responded well to your management plan. Any thoughts on outpatient follow-up?");
-            return;
-        }
-    }
-    
-    const context = `
-    You are role-playing as a ${recipient === 'attending' ? 'teaching attending physician' : 'experienced nurse'} in a medical simulation for internal medicine residents.
-    
-    Current patient information:
-    - Demographics: ${patientData.demographics}
-    - Chief complaint: ${patientData.chiefComplaint}
-    - History: ${patientData.history}
-    - Actual diagnosis (hidden from player): ${patientData.diagnosis}
-    
-    Current vitals:
-    - HR: ${vitalSigns.HR} bpm
-    - BP: ${vitalSigns.BPSystolic}/${vitalSigns.BPDiastolic} mmHg
-    - MAP: ${vitalSigns.MAP} mmHg
-    - RR: ${vitalSigns.RR} breaths/min
-    - Temp: ${vitalSigns.Temp}°C
-    - O2Sat: ${vitalSigns.O2Sat}%
-    
-    Recent case events:
-    ${caseHistory.slice(-5).map(event => `- ${formatGameTime(event.time)}: ${event.event}`).join('\n')}
-    
-    ${recipient === 'attending' ? 
-        'As the attending, give medically accurate guidance, ask probing questions, and evaluate the resident\'s medical decision-making. Be supportive but appropriately critical when needed. Do not directly tell them the diagnosis.' : 
-        'As the nurse, respond to the resident\'s requests, provide observations about the patient, and relay information as a real nurse would. You can perform basic nursing tasks if requested.'}
-    
-    The resident has sent this message: "${message}"
-    
-    Respond in a realistic, conversational manner as a ${recipient === 'attending' ? 'teaching attending physician' : 'nurse'}.
-    Keep your response concise (1-3 sentences) unless detailed medical explanation is necessary.`;
-    
     try {
-        // Use 'lite' tier for chat - conversational roleplay doesn't need deep reasoning
-        const response = await callAPI([{ role: "user", content: context }], 500, 0.7, 'lite');
-        const content = response.choices[0].message.content;
-        
-        // Add the response to the chat
-        addMessage(recipient, content);
-        
+        const reply = await callText(chatMessages(recipient), { tier: 'lite', maxTokens: 400, temperature: 0.7 });
+        typing.remove();
+        if (state.caseFile !== caseFile) return;
+        addMessage(recipient, reply);
+        history.push({ role: 'assistant', content: reply });
     } catch (error) {
-        console.error(`Error generating ${recipient} response:`, error);
-        addMessage('system', `Error: Could not get a response from the ${recipient}.`);
+        console.error(`Chat with ${recipient} failed:`, error);
+        typing.remove();
+        // Drop the unanswered turn so roles keep alternating
+        if (history[history.length - 1]?.role === 'user') history.pop();
+        addMessage('system', `No reply from the ${recipient}. Try again.`);
     }
 }
-
-// Export functions for use in other modules
-export { sendMessage, generateResponse };
