@@ -7,11 +7,11 @@ import { addTokenUsage } from './utils.js';
 const WORKER_URL = "https://rhesus.w4yq4gvh58.workers.dev/";
 
 // Model tiers for cost optimization
-// - 'standard': GPT-5 for complex medical reasoning (case generation, vitals, order evaluation)
-// - 'lite': GPT-5-mini for simple tasks (chat responses, text formatting)
+// - 'standard': DeepSeek V4 Pro for complex medical reasoning (case generation, vitals, order evaluation)
+// - 'lite': DeepSeek V4.1 Flash for simple tasks (chat responses, text formatting)
 const MODELS = {
-    standard: "gpt-5",      // ~$11.25/1M tokens - deep clinical reasoning
-    lite: "gpt-5-mini"      // ~$2.25/1M tokens - routine text generation
+    standard: "deepseek-v4-pro",  // deep clinical reasoning
+    lite: "deepseek-flash"        // routine text generation
 };
 
 // Call the AI API through the secure proxy

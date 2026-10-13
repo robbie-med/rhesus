@@ -19,8 +19,8 @@ export let totalTokens = { input: 0, output: 0 };
 
 // Pricing per million tokens (as of 2026)
 const PRICING = {
-    standard: { input: 1.25, output: 10.00 },   // GPT-5
-    lite: { input: 0.25, output: 2.00 }          // GPT-5-mini
+    standard: { input: 0.46, output: 0.92 },    // DeepSeek V4 Pro (approx.)
+    lite: { input: 0.09, output: 0.19 }          // DeepSeek V4.1 Flash (approx.)
 };
 
 // Setter functions for all mutable state variables

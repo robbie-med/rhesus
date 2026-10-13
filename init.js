@@ -13,7 +13,7 @@ let actionInProgress = false;
 // Cloudflare Worker proxy URL - keeps API key secure on server side
 // Update this URL after deploying your Cloudflare Worker (see worker.js)
 const workerUrl = "https://rhesus.w4yq4gvh58.workers.dev/";
-const apiModel = "gpt-4o-mini";
+const apiModel = "deepseek-flash";
 
 // DOM Elements
 const startGameButton = document.getElementById('startGame');
